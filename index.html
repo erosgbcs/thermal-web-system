@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thermal Monitoring System</title>
+    <style>
+        :root {
+            --bg-base: #0f172a;
+            --bg-surface: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --border: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .dashboard {
+                grid-template-columns: 2fr 1fr;
+            }
+        }
+
+        .card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        /* Hero Temperature Display */
+        .hero-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+            min-height: 300px;
+        }
+
+        .temp-display {
+            font-size: 5.5rem;
+            font-weight: 800;
+            line-height: 1;
+            margin: 1rem 0;
+            transition: color 0.4s ease;
+        }
+
+        /* Dynamic Status Colors */
+        .status-safe { color: var(--success); }
+        .status-warning { color: var(--warning); }
+        .status-danger { color: var(--danger); }
+
+        /* Status & Config Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .status-row:last-child {
+            border-bottom: none;
+        }
+
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .badge.online, .badge.connected {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+        }
+
+        .badge.offline, .badge.disconnected {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+        }
+
+        /* Statistics Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            grid-column: 1 / -1;
+        }
+
+        .stat-card {
+            text-align: center;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+
+        .stat-val {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-top: 0.5rem;
+        }
+
+        /* Input Controls */
+        label {
+            display: block;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            background-color: var(--bg-base);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        /* Alert Banner */
+        .alert-banner {
+            grid-column: 1 / -1;
+            background-color: rgba(239, 68, 68, 0.15);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 1rem;
+            border-radius: 8px;
+            display: none;
+            font-weight: 500;
+        }
+
+        .text-muted { color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard">
+        <!-- Alert Banner Notification -->
+        <div id="alertBanner" class="alert-banner">
+            🚨 Warning: Room temperature has breached the safe limit!
+        </div>
+
+        <!-- Main Live Readout -->
+        <div class="card hero-card">
+            <span class="text-muted" style="text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em;">Current Room Temperature</span>
+            <div id="currentTemp" class="temp-display">--.-°C</div>
+            <span id="tempStatusText" class="text-muted">System Monitoring Active</span>
+        </div>
+
+        <!-- Sidebar Info & Controls -->
+        <div class="sidebar">
+            <!-- System Status Information -->
+            <div class="card">
+                <h3 style="margin-bottom: 1rem; font-size: 1.1rem;">System Information</h3>
+                
+                <div class="status-row">
+                    <span class="text-muted">Device Status</span>
+                    <span id="deviceBadge" class="badge offline">Offline</span>
+                </div>
+                
+                <div class="status-row">
+                    <span class="text-muted">Database Status</span>
+                    <span id="dbBadge" class="badge disconnected">Disconnected</span>
+                </div>
+            </div>
+
+            <!-- Settings / Limits -->
+            <div class="card">
+                <h3 style="margin-bottom: 1rem; font-size: 1.1rem;">Threshold Configurations</h3>
+                <label for="limitInput">Safe Temperature Limit (°C)</label>
+                <input type="number" id="limitInput" value="28" min="15" max="40" step="0.5">
+            </div>
+        </div>
+
+        <!-- Historical Stats System -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="text-muted" style="font-size: 0.85rem;">Highest</span>
+                <div id="highTemp" class="stat-val">--.-°C</div>
+            </div>
+            <div class="stat-card">
+                <span class="text-muted" style="font-size: 0.85rem;">Lowest</span>
+                <div id="lowTemp" class="stat-val">--.-°C</div>
+            </div>
+            <div class="stat-card">
+                <span class="text-muted" style="font-size: 0.85rem;">Average</span>
+                <div id="avgTemp" class="stat-val">--.-°C</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Runtime Data Storage State
+        const dataLog = [];
+        let safeLimit = 28.0;
+
+        // Cache DOM elements
+        const currentTempEl = document.getElementById('currentTemp');
+        const highTempEl = document.getElementById('highTemp');
+        const lowTempEl = document.getElementById('lowTemp');
+        const avgTempEl = document.getElementById('avgTemp');
+        const alertBanner = document.getElementById('alertBanner');
+        const tempStatusText = document.getElementById('tempStatusText');
+        const deviceBadge = document.getElementById('deviceBadge');
+        const dbBadge = document.getElementById('dbBadge');
+        const limitInput = document.getElementById('limitInput');
+
+        // Track threshold adjustments
+        limitInput.addEventListener('input', (e) => {
+            safeLimit = parseFloat(e.target.value) || 28.0;
+            if(dataLog.length > 0) evaluateMetrics(dataLog[dataLog.length - 1]);
+        });
+
+        // Function to update stats cards and apply conditional color coding
+        function evaluateMetrics(newTemp) {
+            dataLog.push(newTemp);
+
+            const highest = Math.max(...dataLog);
+            const lowest = Math.min(...dataLog);
+            const average = dataLog.reduce((a, b) => a + b, 0) / dataLog.length;
+
+            // Render text updates
+            currentTempEl.innerText = `${newTemp.toFixed(1)}°C`;
+            highTempEl.innerText = `${highest.toFixed(1)}°C`;
+            lowTempEl.innerText = `${lowest.toFixed(1)}°C`;
+            avgTempEl.innerText = `${average.toFixed(1)}°C`;
+
+            // Reset dynamic text color classes
+            currentTempEl.className = "temp-display";
+            tempStatusText.className = "text-muted";
+
+            // Apply multi-stage color alert logic
+            if (newTemp >= safeLimit) {
+                // BREACHED: Critical Red State
+                currentTempEl.classList.add('status-danger');
+                alertBanner.style.display = 'block';
+                tempStatusText.innerText = "Temperature Critical";
+                tempStatusText.classList.add('status-danger');
+            } else if (newTemp >= safeLimit - 2.0) {
+                // WARNING: Cautionary Yellow State (within 2°C of limit)
+                currentTempEl.classList.add('status-warning');
+                alertBanner.style.display = 'none';
+                tempStatusText.innerText = "Approaching Limit Alert";
+                tempStatusText.classList.add('status-warning');
+            } else {
+                // SAFE: Normal Green State
+                currentTempEl.classList.add('status-safe');
+                alertBanner.style.display = 'none';
+                tempStatusText.innerText = "System Temperature Stable";
+                tempStatusText.classList.add('status-safe');
+            }
+        }
+
+        // Live Environment Simulator
+        function simulateDataPipeline() {
+            // Set connection states to active for display
+            deviceBadge.className = "badge online";
+            deviceBadge.innerText = "Online";
+            dbBadge.className = "badge connected";
+            dbBadge.innerText = "Connected";
+
+            // Generate an expansive temperature spectrum to showcase all color transitions
+            // Cycles between safe values, warnings, and limits
+            const simulatedRead = 23.0 + (Math.sin(Date.now() / 5000) * 4.5); 
+            evaluateMetrics(simulatedRead);
+        }
+
+        // Run data pipeline automatically every 1 second for snappy testing feedback
+        setInterval(simulateDataPipeline, 1000);
+        simulateDataPipeline(); 
+    </script>
+</body>
+</html>
