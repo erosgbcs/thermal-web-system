@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thermal Monitoring System</title>
+    <title>Appliances Thermal Monitoring System</title>
     <style>
         :root {
+            /* Dark Mode (Default) */
             --bg-base: #0f172a;
             --bg-surface: #1e293b;
             --text-main: #f8fafc;
@@ -17,11 +18,21 @@
             --border: #334155;
         }
 
+        /* Light Mode Classes */
+        html[data-theme="light"] {
+            --bg-base: #f1f5f9;
+            --bg-surface: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
         }
 
         body {
@@ -29,6 +40,32 @@
             color: var(--text-main);
             padding: 2rem;
             min-height: 100vh;
+        }
+
+        /* Header Layout for Title and Toggle Button */
+        .header-controls {
+            max-width: 1200px;
+            margin: 0 auto 1.5rem auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .theme-btn {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .theme-btn:hover {
+            opacity: 0.9;
         }
 
         .dashboard {
@@ -169,17 +206,25 @@
 </head>
 <body>
 
+    <!-- Header Actions Panel -->
+    <div class="header-controls">
+        <h2 style="font-size: 1.3rem; font-weight: 600;">Appliances Thermal Dashboard</h2>
+        <button id="themeToggle" class="theme-btn" aria-label="Toggle Theme">
+            <span id="themeIcon">☀️</span> <span id="themeText">Light Mode</span>
+        </button>
+    </div>
+
     <div class="dashboard">
         <!-- Alert Banner Notification -->
         <div id="alertBanner" class="alert-banner">
-            🚨 Warning: Room temperature has breached the safe limit!
+            🚨 Warning: Appliance core temperature has breached the safe limit!
         </div>
 
         <!-- Main Live Readout -->
         <div class="card hero-card">
-            <span class="text-muted" style="text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em;">Current Room Temperature</span>
+            <span class="text-muted" style="text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em;">Current Appliance Temperature</span>
             <div id="currentTemp" class="temp-display">--.-°C</div>
-            <span id="tempStatusText" class="text-muted">System Monitoring Active</span>
+            <span id="tempStatusText" class="text-muted">Appliance Monitoring Active</span>
         </div>
 
         <!-- Sidebar Info & Controls -->
@@ -202,8 +247,8 @@
             <!-- Settings / Limits -->
             <div class="card">
                 <h3 style="margin-bottom: 1rem; font-size: 1.1rem;">Threshold Configurations</h3>
-                <label for="limitInput">Safe Temperature Limit (°C)</label>
-                <input type="number" id="limitInput" value="28" min="15" max="40" step="0.5">
+                <label for="limitInput">Safe Appliance Limit (°C)</label>
+                <input type="number" id="limitInput" value="22" min="5" max="40" step="0.5">
             </div>
         </div>
 
@@ -227,7 +272,7 @@
     <script>
         // Runtime Data Storage State
         const dataLog = [];
-        let safeLimit = 28.0;
+        let safeLimit = 22.0;
 
         // Cache DOM elements
         const currentTempEl = document.getElementById('currentTemp');
@@ -239,10 +284,45 @@
         const deviceBadge = document.getElementById('deviceBadge');
         const dbBadge = document.getElementById('dbBadge');
         const limitInput = document.getElementById('limitInput');
+        const themeToggleBtn = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const themeText = document.getElementById('themeText');
+
+        // Theme Toggle Handler Engine
+        function setTheme(theme) {
+            if (theme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                themeIcon.innerText = "🌙";
+                themeText.innerText = "Dark Mode";
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                themeIcon.innerText = "☀️";
+                themeText.innerText = "Light Mode";
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        themeToggleBtn.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            if (currentTheme === 'light') {
+                setTheme('dark');
+            } else {
+                setTheme('light');
+            }
+        });
+
+        // Initialize Theme from User Preference Saved History
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            setTheme('light');
+        } else {
+            setTheme('dark'); // Default System State
+        }
 
         // Track threshold adjustments
         limitInput.addEventListener('input', (e) => {
-            safeLimit = parseFloat(e.target.value) || 28.0;
+            safeLimit = parseFloat(e.target.value) || 22.0;
             if(dataLog.length > 0) evaluateMetrics(dataLog[dataLog.length - 1]);
         });
 
@@ -269,7 +349,7 @@
                 // BREACHED: Critical Red State
                 currentTempEl.classList.add('status-danger');
                 alertBanner.style.display = 'block';
-                tempStatusText.innerText = "Temperature Critical";
+                tempStatusText.innerText = "Appliance Temperature Critical";
                 tempStatusText.classList.add('status-danger');
             } else if (newTemp >= safeLimit - 2.0) {
                 // WARNING: Cautionary Yellow State (within 2°C of limit)
@@ -281,7 +361,7 @@
                 // SAFE: Normal Green State
                 currentTempEl.classList.add('status-safe');
                 alertBanner.style.display = 'none';
-                tempStatusText.innerText = "System Temperature Stable";
+                tempStatusText.innerText = "Appliance Operational Base Stable";
                 tempStatusText.classList.add('status-safe');
             }
         }
@@ -291,12 +371,13 @@
             // Set connection states to active for display
             deviceBadge.className = "badge online";
             deviceBadge.innerText = "Online";
+            
+            // Simulating Database connection along with device telemetry logic
             dbBadge.className = "badge connected";
             dbBadge.innerText = "Connected";
 
-            // Generate an expansive temperature spectrum to showcase all color transitions
-            // Cycles between safe values, warnings, and limits
-            const simulatedRead = 23.0 + (Math.sin(Date.now() / 5000) * 4.5); 
+            // Base simulation tailored down for functional appliances (cycles roughly 18C - 22.5C)
+            const simulatedRead = 18.0 + (Math.sin(Date.now() / 5000) * 4.5); 
             evaluateMetrics(simulatedRead);
         }
 
