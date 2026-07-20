@@ -7,69 +7,94 @@
     <style>
         :root {
             /* Dark Mode (Default) */
-            --bg-base: #0f172a;
-            --bg-surface: #1e293b;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
+            --bg-base: #090d16;
+            --bg-surface: #131c2e;
+            --text-main: #f1f5f9;
+            --text-muted: #64748b;
             --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.15);
             --success: #10b981;
-            --danger: #ef4444;
+            --danger: #f43f5e;
             --warning: #f59e0b;
-            --border: #334155;
+            --border: #1e293b;
+            --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
         }
 
         /* Light Mode Classes */
         html[data-theme="light"] {
-            --bg-base: #f1f5f9;
+            --bg-base: #f8fafc;
             --bg-surface: #ffffff;
             --text-main: #0f172a;
-            --text-muted: #64748b;
+            --text-muted: #94a3b8;
             --border: #e2e8f0;
+            --card-shadow: 0 4px 18px -4px rgba(148, 163, 184, 0.12);
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
         }
 
         body {
             background-color: var(--bg-base);
             color: var(--text-main);
-            padding: 2rem;
+            padding: 2.5rem 1.5rem;
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         /* Header Layout for Title and Toggle Button */
         .header-controls {
             max-width: 1200px;
-            margin: 0 auto 1.5rem auto;
+            width: 100%;
+            margin: 0 auto 2rem auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+
+        .header-controls h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, var(--text-main), var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .theme-btn {
             background-color: var(--bg-surface);
             border: 1px solid var(--border);
             color: var(--text-main);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
+            padding: 0.6rem 1.2rem;
+            border-radius: 10px;
             cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 0.9rem;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.6rem;
+            box-shadow: var(--card-shadow);
         }
 
         .theme-btn:hover {
-            opacity: 0.9;
+            border-color: var(--primary);
+            box-shadow: 0 0 12px var(--primary-glow);
+            transform: translateY(-1px);
+        }
+        
+        .theme-btn:active {
+            transform: translateY(0);
         }
 
         .dashboard {
             max-width: 1200px;
+            width: 100%;
             margin: 0 auto;
             display: grid;
             grid-template-columns: 1fr;
@@ -85,8 +110,9 @@
         .card {
             background-color: var(--bg-surface);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.5rem;
+            border-radius: 16px;
+            padding: 1.75rem;
+            box-shadow: var(--card-shadow);
         }
 
         /* Hero Temperature Display */
@@ -97,21 +123,24 @@
             justify-content: center;
             text-align: center;
             position: relative;
-            min-height: 300px;
+            min-height: 320px;
+            overflow: hidden;
         }
 
         .temp-display {
-            font-size: 5.5rem;
-            font-weight: 800;
+            font-size: 6rem;
+            font-weight: 900;
             line-height: 1;
-            margin: 1rem 0;
-            transition: color 0.4s ease;
+            margin: 1.25rem 0;
+            letter-spacing: -0.04em;
+            font-variant-numeric: tabular-nums;
+            transition: color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         /* Dynamic Status Colors */
-        .status-safe { color: var(--success); }
-        .status-warning { color: var(--warning); }
-        .status-danger { color: var(--danger); }
+        .status-safe { color: var(--success); text-shadow: 0 0 30px rgba(16, 185, 129, 0.1); }
+        .status-warning { color: var(--warning); text-shadow: 0 0 30px rgba(245, 158, 11, 0.1); }
+        .status-danger { color: var(--danger); text-shadow: 0 0 30px rgba(244, 63, 94, 0.15); }
 
         /* Status & Config Sidebar */
         .sidebar {
@@ -124,28 +153,37 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.75rem 0;
+            padding: 1rem 0;
             border-bottom: 1px solid var(--border);
         }
 
         .status-row:last-child {
             border-bottom: none;
+            padding-bottom: 0;
+        }
+        
+        .status-row:first-of-type {
+            padding-top: 0.5rem;
         }
 
         .badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.85rem;
-            font-weight: 600;
+            padding: 0.35rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
         }
 
         .badge.online, .badge.connected {
-            background-color: rgba(16, 185, 129, 0.15);
+            background-color: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
             color: var(--success);
         }
 
         .badge.offline, .badge.disconnected {
-            background-color: rgba(239, 68, 68, 0.15);
+            background-color: rgba(244, 63, 94, 0.1);
+            border: 1px solid rgba(244, 63, 94, 0.2);
             color: var(--danger);
         }
 
@@ -153,7 +191,7 @@
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
+            gap: 1.25rem;
             grid-column: 1 / -1;
         }
 
@@ -161,22 +199,44 @@
             text-align: center;
             background-color: var(--bg-surface);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.25rem;
+            border-radius: 16px;
+            padding: 1.5rem 1rem;
+            box-shadow: var(--card-shadow);
+            position: relative;
         }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 3px;
+            border-radius: 0 0 4px 4px;
+        }
+        
+        #highTemp-card::before { background-color: var(--danger); }
+        #lowTemp-card::before { background-color: var(--primary); }
+        #avgTemp-card::before { background-color: var(--warning); }
 
         .stat-val {
-            font-size: 1.75rem;
-            font-weight: 700;
-            margin-top: 0.5rem;
+            font-size: 2rem;
+            font-weight: 800;
+            margin-top: 0.6rem;
+            letter-spacing: -0.02em;
+            font-variant-numeric: tabular-nums;
         }
 
         /* Input Controls */
         label {
             display: block;
             color: var(--text-muted);
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
         }
 
         input[type="number"] {
@@ -184,31 +244,55 @@
             background-color: var(--bg-base);
             border: 1px solid var(--border);
             color: var(--text-main);
-            padding: 0.75rem;
-            border-radius: 6px;
-            font-size: 1rem;
+            padding: 0.85rem 1rem;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            outline: none;
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
         }
 
         /* Alert Banner */
         .alert-banner {
             grid-column: 1 / -1;
-            background-color: rgba(239, 68, 68, 0.15);
+            background: linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(244, 63, 94, 0.05));
             border: 1px solid var(--danger);
-            color: var(--danger);
-            padding: 1rem;
-            border-radius: 8px;
+            color: #ffffff;
+            padding: 1.2rem 1.5rem;
+            border-radius: 14px;
             display: none;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 0.95rem;
+            box-shadow: 0 10px 30px -10px rgba(244, 63, 94, 0.3);
+            animation: pulseAlert 2s infinite alternate;
         }
 
-        .text-muted { color: var(--text-muted); }
+        @keyframes pulseAlert {
+            0% { box-shadow: 0 4px 20px -5px rgba(244, 63, 94, 0.2); }
+            100% { box-shadow: 0 4px 25px 2px rgba(244, 63, 94, 0.4); }
+        }
+
+        .text-muted { 
+            color: var(--text-muted); 
+            font-weight: 500;
+        }
+        
+        h3 {
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            color: var(--text-main);
+        }
     </style>
 </head>
 <body>
 
     <!-- Header Actions Panel -->
     <div class="header-controls">
-        <h2 style="font-size: 1.3rem; font-weight: 600;">Appliances Thermal Dashboard</h2>
+        <h2>Appliance Thermal Monitoring</h2>
         <button id="themeToggle" class="theme-btn" aria-label="Toggle Theme">
             <span id="themeIcon">☀️</span> <span id="themeText">Light Mode</span>
         </button>
@@ -222,31 +306,31 @@
 
         <!-- Main Live Readout -->
         <div class="card hero-card">
-            <span class="text-muted" style="text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em;">Current Appliance Temperature</span>
+            <span class="text-muted" style="text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.08em; font-weight: 700;">Current Appliance Temperature</span>
             <div id="currentTemp" class="temp-display">--.-°C</div>
-            <span id="tempStatusText" class="text-muted">Appliance Monitoring Active</span>
+            <span id="tempStatusText" class="text-muted" style="font-size: 0.95rem;">Appliance Monitoring Active</span>
         </div>
 
         <!-- Sidebar Info & Controls -->
         <div class="sidebar">
             <!-- System Status Information -->
             <div class="card">
-                <h3 style="margin-bottom: 1rem; font-size: 1.1rem;">System Information</h3>
+                <h3 style="margin-bottom: 1.25rem; font-size: 1.15rem;">System Diagnostics</h3>
                 
                 <div class="status-row">
-                    <span class="text-muted">Device Status</span>
+                    <span class="text-muted">Device Unit</span>
                     <span id="deviceBadge" class="badge offline">Offline</span>
                 </div>
                 
                 <div class="status-row">
-                    <span class="text-muted">Database Status</span>
+                    <span class="text-muted">Telemetry Database</span>
                     <span id="dbBadge" class="badge disconnected">Disconnected</span>
                 </div>
             </div>
 
             <!-- Settings / Limits -->
             <div class="card">
-                <h3 style="margin-bottom: 1rem; font-size: 1.1rem;">Threshold Configurations</h3>
+                <h3 style="margin-bottom: 1.25rem; font-size: 1.15rem;">System Thresholds</h3>
                 <label for="limitInput">Safe Appliance Limit (°C)</label>
                 <input type="number" id="limitInput" value="22" min="5" max="40" step="0.5">
             </div>
@@ -254,16 +338,16 @@
 
         <!-- Historical Stats System -->
         <div class="stats-grid">
-            <div class="stat-card">
-                <span class="text-muted" style="font-size: 0.85rem;">Highest</span>
+            <div class="stat-card" id="highTemp-card">
+                <span class="text-muted" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Highest</span>
                 <div id="highTemp" class="stat-val">--.-°C</div>
             </div>
-            <div class="stat-card">
-                <span class="text-muted" style="font-size: 0.85rem;">Lowest</span>
+            <div class="stat-card" id="lowTemp-card">
+                <span class="text-muted" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Lowest</span>
                 <div id="lowTemp" class="stat-val">--.-°C</div>
             </div>
-            <div class="stat-card">
-                <span class="text-muted" style="font-size: 0.85rem;">Average</span>
+            <div class="stat-card" id="avgTemp-card">
+                <span class="text-muted" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Average</span>
                 <div id="avgTemp" class="stat-val">--.-°C</div>
             </div>
         </div>
@@ -273,6 +357,78 @@
         // Runtime Data Storage State
         const dataLog = [];
         let safeLimit = 22.0;
+
+        // --- ALARM SOUND CONTROLLER ENGINE ---
+        let audioCtx = null;
+        let sirenNodes = null;
+
+        function startSiren() {
+            // If already sounding, do nothing
+            if (sirenNodes) return;
+
+            try {
+                // Initialize context on first user interaction or alert execution
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                // If browser suspended audio to prevent unsolicited noise, resume it
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+
+                // Main alarm pitch source
+                const oscillator = audioCtx.createOscillator();
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(650, audioCtx.currentTime); 
+
+                // Low-frequency oscillator to handle the "pulsing / wave" volume effect
+                const modulator = audioCtx.createOscillator();
+                modulator.type = 'sine';
+                modulator.frequency.setValueAtTime(3, audioCtx.currentTime); // 3 pulses per second
+
+                // Modulator gain depth mapping
+                const modulatorGain = audioCtx.createGain();
+                modulatorGain.gain.setValueAtTime(150, audioCtx.currentTime);
+
+                // Main volume limiter node
+                const volumeNode = audioCtx.createGain();
+                volumeNode.gain.setValueAtTime(0.15, audioCtx.currentTime); // 15% volume baseline
+
+                // Route audio pipeline map
+                modulator.connect(modulatorGain);
+                modulatorGain.connect(oscillator.frequency);
+                oscillator.connect(volumeNode);
+                volumeNode.connect(audioCtx.destination);
+
+                // Ignite synthesizers
+                modulator.start();
+                oscillator.start();
+
+                // Save references securely so we can shut it down cleanly later
+                sirenNodes = { oscillator, modulator };
+            } catch (error) {
+                console.error("Audio system waiting for user gesture initialization...", error);
+            }
+        }
+
+        function stopSiren() {
+            if (sirenNodes) {
+                try {
+                    sirenNodes.oscillator.stop();
+                    sirenNodes.modulator.stop();
+                } catch(e) {}
+                sirenNodes = null;
+            }
+        }
+
+        // Auto-unlock audio engine on any random background click anywhere
+        document.body.addEventListener('click', () => {
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }, { once: true });
+
 
         // Cache DOM elements
         const currentTempEl = document.getElementById('currentTemp');
@@ -351,18 +507,27 @@
                 alertBanner.style.display = 'block';
                 tempStatusText.innerText = "Appliance Temperature Critical";
                 tempStatusText.classList.add('status-danger');
+                
+                // Fire the siren synthesizer loop
+                startSiren();
             } else if (newTemp >= safeLimit - 2.0) {
                 // WARNING: Cautionary Yellow State (within 2°C of limit)
                 currentTempEl.classList.add('status-warning');
                 alertBanner.style.display = 'none';
                 tempStatusText.innerText = "Approaching Limit Alert";
                 tempStatusText.classList.add('status-warning');
+                
+                // Turn off alarm since we are safely out of the red zone
+                stopSiren();
             } else {
                 // SAFE: Normal Green State
                 currentTempEl.classList.add('status-safe');
                 alertBanner.style.display = 'none';
                 tempStatusText.innerText = "Appliance Operational Base Stable";
                 tempStatusText.classList.add('status-safe');
+                
+                // Turn off alarm
+                stopSiren();
             }
         }
 
