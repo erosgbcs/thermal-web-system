@@ -922,16 +922,20 @@
             // Cycles roughly 18°C to 24°C with occasional spike testing
             const simulatedRead = 18.0 + (Math.sin(Date.now() / 4000) * 5.0); 
             evaluateMetrics(simulatedRead);
+
+            if (typeof window.publishTemperatureToDatabase === "function") {
+                window.publishTemperatureToDatabase(simulatedRead);
+            }
         }
 
         // Run data pipeline every 3 seconds for clean table updates
         setInterval(simulateDataPipeline, 3000);
-        simulateDataPipeline(); 
+        simulateDataPipeline();
+    </script>
 
-        <!-- Add Firebase Modular SDK via CDN -->
-     type="module">
+    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         // Your Firebase configuration
         const firebaseConfig = {
@@ -950,28 +954,39 @@
         const database = getDatabase(app);
 
         // UI Reference Badges
-        const deviceBadge = document.getElementById('deviceBadge');
-        const dbBadge = document.getElementById('dbBadge');
+        const deviceBadgeEl = document.getElementById('deviceBadge');
+        const dbBadgeEl = document.getElementById('dbBadge');
 
         // Monitor Realtime Database Connection Status
         const connectedRef = ref(database, ".info/connected");
         onValue(connectedRef, (snap) => {
             if (snap.val() === true) {
-                dbBadge.innerText = "Connected";
-                dbBadge.className = "badge connected";
-                deviceBadge.innerText = "Online";
-                deviceBadge.className = "badge online";
+                dbBadgeEl.innerText = "Connected";
+                dbBadgeEl.className = "badge connected";
+                deviceBadgeEl.innerText = "Online";
+                deviceBadgeEl.className = "badge online";
             } else {
-                dbBadge.innerText = "Disconnected";
-                dbBadge.className = "badge disconnected";
-                deviceBadge.innerText = "Offline";
-                deviceBadge.className = "badge offline";
+                dbBadgeEl.innerText = "Disconnected";
+                dbBadgeEl.className = "badge disconnected";
+                deviceBadgeEl.innerText = "Offline";
+                deviceBadgeEl.className = "badge offline";
             }
         });
 
         // Path to your thermal sensor data in Firebase Realtime Database
-        // CHANGE 'temperature' to match your exact Database key (e.g., 'sensors/temp')
         const tempRef = ref(database, 'temperature');
+
+        window.publishTemperatureToDatabase = async function (value) {
+            try {
+                await set(tempRef, Number(value).toFixed(2));
+            } catch (error) {
+                console.error('Failed to write temperature to Firebase:', error);
+                if (dbBadgeEl) {
+                    dbBadgeEl.innerText = "Write Failed";
+                    dbBadgeEl.className = "badge disconnected";
+                }
+            }
+        };
 
         // Listen for live temperature data changes
         onValue(tempRef, (snapshot) => {
