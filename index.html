@@ -464,7 +464,17 @@
         .log-card {
             grid-column: 1 / -1;
             padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-table-wrapper {
+            margin-top: 0.5rem;
+            max-height: 320px;
+            overflow-y: auto;
             overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: 12px;
         }
 
         .log-table {
@@ -480,6 +490,10 @@
             font-weight: 700;
             color: var(--text-muted);
             border-bottom: 2px solid var(--border);
+            position: sticky;
+            top: 0;
+            background-color: var(--bg-surface);
+            z-index: 1;
         }
 
         .log-table td {
@@ -601,6 +615,10 @@
                 <h3 style="margin-bottom: 1.25rem; font-size: 1.15rem;">System Thresholds</h3>
                 <label for="limitInput" id="limitLabel">Safe Appliance Limit (°C)</label>
                 <input type="number" id="limitInput" value="22" min="5" max="100" step="0.5">
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                    <label for="esp32HostInput" style="margin-bottom: 0.5rem;">ESP32 Host / IP</label>
+                    <input type="text" id="esp32HostInput" placeholder="192.168.1.50" style="width: 100%; background-color: var(--bg-base); border: 1px solid var(--border); color: var(--text-main); padding: 0.8rem 1rem; border-radius: 10px; font-size: 0.95rem;">
+                </div>
             </div>
         </div>
 
@@ -623,19 +641,21 @@
         <!-- METRIC LOG TABLE CARD (IMAGE MATCHING) -->
         <div class="card log-card">
             <h3 style="margin-bottom: 1rem; font-size: 1.15rem;">History Event Log</h3>
-            <table class="log-table">
-                <thead>
-                    <tr>
-                        <th>Time</th>
-                        <th>Event</th>
-                        <th>Peak</th>
-                        <th>System Status</th>
-                    </tr>
-                </thead>
-                <tbody id="telemetryLogBody">
-                    <!-- Dynamic Log Rows Render Here -->
-                </tbody>
-            </table>
+            <div class="log-table-wrapper">
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Event</th>
+                            <th>Peak</th>
+                            <th>System Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="telemetryLogBody">
+                        <!-- Dynamic Log Rows Render Here -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -747,6 +767,9 @@
         const unitToggleBtn = document.getElementById('unitToggle');
         const unitText = document.getElementById('unitText');
         const telemetryLogBody = document.getElementById('telemetryLogBody');
+        const esp32HostInput = document.getElementById('esp32HostInput');
+        let esp32Socket = null;
+        let esp32Connected = false;
 
         // --- TEMPERATURE CONVERSION HELPERS ---
         function formatTemp(tempInC) {
@@ -815,6 +838,78 @@
             }
             if(dataLog.length > 0) evaluateMetrics(dataLog[dataLog.length - 1]);
         });
+
+        function setDeviceBadge(text, stateClass) {
+            deviceBadge.innerText = text;
+            deviceBadge.className = stateClass;
+        }
+
+        function connectToEsp32() {
+            const host = (esp32HostInput.value || '').trim();
+            if (!host) {
+                esp32Connected = false;
+                setDeviceBadge('Not Configured', 'badge offline');
+                return;
+            }
+
+            const wsUrl = host.startsWith('ws://') || host.startsWith('wss://') ? host : `ws://${host}:81`;
+
+            if (esp32Socket && (esp32Socket.readyState === WebSocket.OPEN || esp32Socket.readyState === WebSocket.CONNECTING)) {
+                return;
+            }
+
+            setDeviceBadge('Connecting...', 'badge offline');
+            esp32Connected = false;
+
+            try {
+                esp32Socket = new WebSocket(wsUrl);
+
+                esp32Socket.addEventListener('open', () => {
+                    esp32Connected = true;
+                    setDeviceBadge('ESP32 Connected', 'badge online');
+                });
+
+                esp32Socket.addEventListener('message', (event) => {
+                    try {
+                        const payload = JSON.parse(event.data);
+                        if (payload.temperature !== undefined) {
+                            const numericTemp = parseFloat(payload.temperature);
+                            if (!isNaN(numericTemp)) {
+                                evaluateMetrics(numericTemp);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Invalid ESP32 payload:', error);
+                    }
+                });
+
+                esp32Socket.addEventListener('close', () => {
+                    esp32Connected = false;
+                    setDeviceBadge('ESP32 Offline', 'badge offline');
+                });
+
+                esp32Socket.addEventListener('error', () => {
+                    esp32Connected = false;
+                    setDeviceBadge('ESP32 Error', 'badge offline');
+                });
+            } catch (error) {
+                console.error('Unable to connect to ESP32:', error);
+                setDeviceBadge('ESP32 Error', 'badge offline');
+            }
+        }
+
+        esp32HostInput.addEventListener('change', () => {
+            localStorage.setItem('esp32Host', esp32HostInput.value.trim());
+            connectToEsp32();
+        });
+
+        const savedEsp32Host = localStorage.getItem('esp32Host') || '';
+        if (savedEsp32Host) {
+            esp32HostInput.value = savedEsp32Host;
+            connectToEsp32();
+        } else {
+            setDeviceBadge('Not Configured', 'badge offline');
+        }
 
         // Function to render Table rows
         function renderTableLog() {
@@ -895,29 +990,33 @@
             const now = new Date();
             const timeStr = now.toLocaleTimeString(undefined, { hour12: false });
             
-            eventHistory.unshift({
+            const eventEntry = {
+                timestamp: Date.now(),
                 time: timeStr,
                 event: currentEvent,
                 temp: newTemp,
                 status: currentStatus,
                 isAlarm: isAlarmState
-            });
+            };
 
-            // Keep max 10 rows in history table
-            if (eventHistory.length > 10) {
-                eventHistory.pop();
-            }
-
+            eventHistory.unshift(eventEntry);
             renderTableLog();
+
+            if (typeof window.publishEventHistoryToDatabase === "function") {
+                window.publishEventHistoryToDatabase(eventEntry);
+            }
         }
 
         // Live Environment Simulator
         function simulateDataPipeline() {
-            deviceBadge.className = "badge online";
-            deviceBadge.innerText = "Online";
-            
             dbBadge.className = "badge connected";
             dbBadge.innerText = "Connected";
+
+            if (esp32Connected) {
+                return;
+            }
+
+            setDeviceBadge('Not Connected', 'badge offline');
 
             // Cycles roughly 18°C to 24°C with occasional spike testing
             const simulatedRead = 18.0 + (Math.sin(Date.now() / 4000) * 5.0); 
@@ -963,18 +1062,15 @@
             if (snap.val() === true) {
                 dbBadgeEl.innerText = "Connected";
                 dbBadgeEl.className = "badge connected";
-                deviceBadgeEl.innerText = "Online";
-                deviceBadgeEl.className = "badge online";
             } else {
                 dbBadgeEl.innerText = "Disconnected";
                 dbBadgeEl.className = "badge disconnected";
-                deviceBadgeEl.innerText = "Offline";
-                deviceBadgeEl.className = "badge offline";
             }
         });
 
         // Path to your thermal sensor data in Firebase Realtime Database
         const tempRef = ref(database, 'temperature');
+        const historyRef = ref(database, 'eventHistory');
 
         window.publishTemperatureToDatabase = async function (value) {
             try {
@@ -987,6 +1083,35 @@
                 }
             }
         };
+
+        window.publishEventHistoryToDatabase = async function (eventEntry) {
+            try {
+                const eventId = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+                await set(ref(database, `eventHistory/${eventId}`), eventEntry);
+            } catch (error) {
+                console.error('Failed to write history event to Firebase:', error);
+                if (dbBadgeEl) {
+                    dbBadgeEl.innerText = "History Write Failed";
+                    dbBadgeEl.className = "badge disconnected";
+                }
+            }
+        };
+
+        onValue(historyRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const entries = Object.entries(data)
+                    .map(([id, value]) => ({ id, ...(value || {}) }))
+                    .filter(entry => entry && typeof entry === 'object')
+                    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+                eventHistory.splice(0, eventHistory.length, ...entries);
+                renderTableLog();
+            } else {
+                eventHistory.splice(0, eventHistory.length);
+                renderTableLog();
+            }
+        });
 
         // Listen for live temperature data changes
         onValue(tempRef, (snapshot) => {
