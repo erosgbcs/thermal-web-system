@@ -673,7 +673,7 @@
         // Runtime Data Storage State
         const dataLog = [];
         const eventHistory = []; // Stores detailed logs
-        let safeLimit = 0.0; // Stored natively in Celsius
+        let safeLimit = 50.0; // Stored natively in Celsius (default sane value)
         let isCelsius = true;
 
         // --- REAL-TIME DATE & TIME ENGINE ---
@@ -770,6 +770,10 @@
         const esp32HostInput = document.getElementById('esp32HostInput');
         let esp32Socket = null;
         let esp32Connected = false;
+
+        // Ignore the initial Firebase temperature snapshot on first page load
+        // to avoid applying stale/previous readings as a "random" reading.
+        window.ignoreInitialFirebaseTemp = true;
 
         // --- TEMPERATURE CONVERSION HELPERS ---
         function formatTemp(tempInC) {
@@ -1121,6 +1125,13 @@
 
         // Listen for live temperature data changes
         onValue(tempRef, (snapshot) => {
+            // Skip the initial snapshot on page load to avoid applying stale values
+            if (window.ignoreInitialFirebaseTemp) {
+                window.ignoreInitialFirebaseTemp = false;
+                console.log('Ignored initial Firebase temperature snapshot.');
+                return;
+            }
+
             const val = snapshot.val();
             if (val !== null && val !== undefined) {
                 const numericTemp = parseFloat(val);
