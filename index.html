@@ -622,7 +622,7 @@
 
         <!-- METRIC LOG TABLE CARD (IMAGE MATCHING) -->
         <div class="card log-card">
-            <h3 style="margin-bottom: 1rem; font-size: 1.15rem;">Telemetry Event Log</h3>
+            <h3 style="margin-bottom: 1rem; font-size: 1.15rem;">History Event Log</h3>
             <table class="log-table">
                 <thead>
                     <tr>
@@ -927,6 +927,62 @@
         // Run data pipeline every 3 seconds for clean table updates
         setInterval(simulateDataPipeline, 3000);
         simulateDataPipeline(); 
+
+        <!-- Add Firebase Modular SDK via CDN -->
+     type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Your Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCuq5d5FKDlahLEkzVCHLqrScNhNHl2iIs",
+            authDomain: "web-app-thermal-detection.firebaseapp.com",
+            databaseURL: "https://web-app-thermal-detection-default-rtdb.firebaseio.com",
+            projectId: "web-app-thermal-detection",
+            storageBucket: "web-app-thermal-detection.firebasestorage.app",
+            messagingSenderId: "231355651791",
+            appId: "1:231355651791:web:d394151424a257ddefc9ba",
+            measurementId: "G-LYHV1QBRSR"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // UI Reference Badges
+        const deviceBadge = document.getElementById('deviceBadge');
+        const dbBadge = document.getElementById('dbBadge');
+
+        // Monitor Realtime Database Connection Status
+        const connectedRef = ref(database, ".info/connected");
+        onValue(connectedRef, (snap) => {
+            if (snap.val() === true) {
+                dbBadge.innerText = "Connected";
+                dbBadge.className = "badge connected";
+                deviceBadge.innerText = "Online";
+                deviceBadge.className = "badge online";
+            } else {
+                dbBadge.innerText = "Disconnected";
+                dbBadge.className = "badge disconnected";
+                deviceBadge.innerText = "Offline";
+                deviceBadge.className = "badge offline";
+            }
+        });
+
+        // Path to your thermal sensor data in Firebase Realtime Database
+        // CHANGE 'temperature' to match your exact Database key (e.g., 'sensors/temp')
+        const tempRef = ref(database, 'temperature');
+
+        // Listen for live temperature data changes
+        onValue(tempRef, (snapshot) => {
+            const val = snapshot.val();
+            if (val !== null && val !== undefined) {
+                const numericTemp = parseFloat(val);
+                if (!isNaN(numericTemp)) {
+                    evaluateMetrics(numericTemp);
+                }
+            }
+        });
     </script>
 </body>
 </html>
