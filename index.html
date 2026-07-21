@@ -614,7 +614,7 @@
             <div class="card">
                 <h3 style="margin-bottom: 1.25rem; font-size: 1.15rem;">System Thresholds</h3>
                 <label for="limitInput" id="limitLabel">Safe Appliance Limit (°C)</label>
-                <input type="number" id="limitInput" value="22" min="5" max="100" step="0.5">
+                <input type="number" id="limitInput" value="0" min="0" max="100" step="0.5">
                 <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
                     <label for="esp32HostInput" style="margin-bottom: 0.5rem;">ESP32 Host / IP</label>
                     <input type="text" id="esp32HostInput" placeholder="192.168.1.50" style="width: 100%; background-color: var(--bg-base); border: 1px solid var(--border); color: var(--text-main); padding: 0.8rem 1rem; border-radius: 10px; font-size: 0.95rem;">
@@ -673,7 +673,7 @@
         // Runtime Data Storage State
         const dataLog = [];
         const eventHistory = []; // Stores detailed logs
-        let safeLimit = 22.0; // Stored natively in Celsius
+        let safeLimit = 0.0; // Stored natively in Celsius
         let isCelsius = true;
 
         // --- REAL-TIME DATE & TIME ENGINE ---
@@ -836,7 +836,6 @@
             if (!isNaN(val)) {
                 safeLimit = isCelsius ? val : (val - 32) * 5 / 9;
             }
-            if(dataLog.length > 0) evaluateMetrics(dataLog[dataLog.length - 1]);
         });
 
         function setDeviceBadge(text, stateClass) {
@@ -909,6 +908,21 @@
             connectToEsp32();
         } else {
             setDeviceBadge('Not Configured', 'badge offline');
+        }
+
+        function resetDisplayToZero() {
+            currentTempEl.innerText = '0.0°C';
+            highTempEl.innerText = '0.0°C';
+            lowTempEl.innerText = '0.0°C';
+            avgTempEl.innerText = '0.0°C';
+            currentTempEl.className = 'temp-display';
+            tempStatusText.className = 'text-muted';
+            thermalStateBadge.className = 'state-badge';
+            thermalStateBadge.innerText = 'NORMAL';
+            thermalStateBadge.classList.add('normal');
+            tempStatusText.innerText = 'Waiting for ESP32 data';
+            alertBanner.style.display = 'none';
+            stopSiren();
         }
 
         // Function to render Table rows
@@ -1007,27 +1021,19 @@
             }
         }
 
-        // Live Environment Simulator
+        // Live data pipeline
         function simulateDataPipeline() {
-            dbBadge.className = "badge connected";
-            dbBadge.innerText = "Connected";
-
-            if (esp32Connected) {
+            if (!esp32Connected) {
+                setDeviceBadge('Not Connected', 'badge offline');
+                resetDisplayToZero();
                 return;
             }
 
-            setDeviceBadge('Not Connected', 'badge offline');
-
-            // Cycles roughly 18°C to 24°C with occasional spike testing
-            const simulatedRead = 18.0 + (Math.sin(Date.now() / 4000) * 5.0); 
-            evaluateMetrics(simulatedRead);
-
-            if (typeof window.publishTemperatureToDatabase === "function") {
-                window.publishTemperatureToDatabase(simulatedRead);
-            }
+            dbBadge.className = "badge connected";
+            dbBadge.innerText = "Connected";
         }
 
-        // Run data pipeline every 3 seconds for clean table updates
+        // Run data pipeline every 3 seconds to keep the UI responsive
         setInterval(simulateDataPipeline, 3000);
         simulateDataPipeline();
     </script>
