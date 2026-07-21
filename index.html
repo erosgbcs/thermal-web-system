@@ -19,6 +19,10 @@
             --border: #1e293b;
             --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
             --loader-bg: #090d16;
+
+            /* Table Alarm Row Variables (Dark Mode) */
+            --alarm-row-bg: #45121e;
+            --alarm-row-text: #fecdd3;
         }
 
         /* Light Mode Classes */
@@ -30,6 +34,10 @@
             --border: #e2e8f0;
             --card-shadow: 0 4px 18px -4px rgba(148, 163, 184, 0.12);
             --loader-bg: #f8fafc;
+
+            /* Table Alarm Row Variables (Light Mode) */
+            --alarm-row-bg: #ffe4e6;
+            --alarm-row-text: #9f1239;
         }
 
         * {
@@ -120,7 +128,6 @@
             margin-bottom: 1.5rem;
         }
 
-        /* Modern Progress Bar */
         .progress-bar-container {
             width: 70%;
             max-width: 240px;
@@ -177,23 +184,41 @@
             100% { width: 100%; }
         }
 
-        /* --- DASHBOARD STYLES (ORIGINAL) --- */
+        /* --- DASHBOARD STYLES --- */
         .header-controls {
             max-width: 1200px;
             width: 100%;
-            margin: 0 auto 2rem auto;
+            margin: 0 auto 1.5rem auto;
             display: flex;
+            flex-wrap: wrap;
             justify-content: space-between;
             align-items: center;
+            gap: 1rem;
         }
 
-        .header-controls h2 {
+        .header-title-group h2 {
             font-size: 1.5rem;
             font-weight: 700;
             letter-spacing: -0.02em;
             background: linear-gradient(to right, var(--text-main), var(--text-muted));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+        }
+
+        .datetime-display {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
 
         .theme-btn {
@@ -259,7 +284,7 @@
             font-size: 6rem;
             font-weight: 900;
             line-height: 1;
-            margin: 1.25rem 0;
+            margin: 0.75rem 0;
             letter-spacing: -0.04em;
             font-variant-numeric: tabular-nums;
             transition: color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -268,6 +293,42 @@
         .status-safe { color: var(--success); text-shadow: 0 0 30px rgba(16, 185, 129, 0.1); }
         .status-warning { color: var(--warning); text-shadow: 0 0 30px rgba(245, 158, 11, 0.1); }
         .status-danger { color: var(--danger); text-shadow: 0 0 30px rgba(244, 63, 94, 0.15); }
+
+        .state-badge {
+            display: inline-block;
+            padding: 0.4rem 1.1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        .state-badge.normal {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .state-badge.high-heat {
+            background-color: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .state-badge.critical {
+            background-color: rgba(244, 63, 94, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            animation: pulseState 1.5s infinite alternate;
+        }
+
+        @keyframes pulseState {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
+        }
 
         .sidebar {
             display: flex;
@@ -399,6 +460,47 @@
             100% { box-shadow: 0 4px 25px 2px rgba(244, 63, 94, 0.4); }
         }
 
+        /* --- TELEMETRY LOG TABLE STYLING --- */
+        .log-card {
+            grid-column: 1 / -1;
+            padding: 1.5rem;
+            overflow-x: auto;
+        }
+
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.95rem;
+        }
+
+        .log-table th {
+            padding: 0.85rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border);
+        }
+
+        .log-table td {
+            padding: 0.85rem 1rem;
+            font-weight: 500;
+            border-bottom: 1px solid var(--border);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Alarm Row Highlight (Matches image design) */
+        .log-table tr.row-alarm {
+            background-color: var(--alarm-row-bg) !important;
+            color: var(--alarm-row-text) !important;
+        }
+
+        .log-table tr.row-alarm td {
+            color: var(--alarm-row-text) !important;
+            font-weight: 700;
+            border-bottom-color: rgba(244, 63, 94, 0.2);
+        }
+
         .text-muted { 
             color: var(--text-muted); 
             font-weight: 500;
@@ -439,10 +541,24 @@
 
     <!-- Header Actions Panel -->
     <div class="header-controls">
-        <h2>Appliance Thermal Monitoring</h2>
-        <button id="themeToggle" class="theme-btn" aria-label="Toggle Theme">
-            <span id="themeIcon">☀️</span> <span id="themeText">Light Mode</span>
-        </button>
+        <div class="header-title-group">
+            <h2>Appliance Thermal Monitoring</h2>
+            <div class="datetime-display">
+                📅 <span id="currentDate">--</span> | 🕒 <span id="currentTime">--</span>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <!-- Unit Conversion Toggle -->
+            <button id="unitToggle" class="theme-btn" aria-label="Toggle Temperature Unit">
+                <span>🌡️</span> <span id="unitText">Celsius (°C)</span>
+            </button>
+
+            <!-- Theme Toggle -->
+            <button id="themeToggle" class="theme-btn" aria-label="Toggle Theme">
+                <span id="themeIcon">☀️</span> <span id="themeText">Light Mode</span>
+            </button>
+        </div>
     </div>
 
     <div class="dashboard">
@@ -454,7 +570,12 @@
         <!-- Main Live Readout -->
         <div class="card hero-card">
             <span class="text-muted" style="text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.08em; font-weight: 700;">Current Appliance Temperature</span>
+            
             <div id="currentTemp" class="temp-display">--.-°C</div>
+            
+            <!-- State Indicator -->
+            <div id="thermalStateBadge" class="state-badge normal">NORMAL</div>
+
             <span id="tempStatusText" class="text-muted" style="font-size: 0.95rem;">Appliance Monitoring Active</span>
         </div>
 
@@ -470,7 +591,7 @@
                 </div>
                 
                 <div class="status-row">
-                    <span class="text-muted">Metric Database</span>
+                    <span class="text-muted">Telemetry Database</span>
                     <span id="dbBadge" class="badge disconnected">Disconnected</span>
                 </div>
             </div>
@@ -478,8 +599,8 @@
             <!-- Settings / Limits -->
             <div class="card">
                 <h3 style="margin-bottom: 1.25rem; font-size: 1.15rem;">System Thresholds</h3>
-                <label for="limitInput">Safe Appliance Limit (°C)</label>
-                <input type="number" id="limitInput" value="22" min="5" max="40" step="0.5">
+                <label for="limitInput" id="limitLabel">Safe Appliance Limit (°C)</label>
+                <input type="number" id="limitInput" value="22" min="5" max="100" step="0.5">
             </div>
         </div>
 
@@ -498,12 +619,29 @@
                 <div id="avgTemp" class="stat-val">--.-°C</div>
             </div>
         </div>
+
+        <!-- TELEMETRY LOG TABLE CARD (IMAGE MATCHING) -->
+        <div class="card log-card">
+            <h3 style="margin-bottom: 1rem; font-size: 1.15rem;">Telemetry Event Log</h3>
+            <table class="log-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Event</th>
+                        <th>Peak</th>
+                        <th>System Status</th>
+                    </tr>
+                </thead>
+                <tbody id="telemetryLogBody">
+                    <!-- Dynamic Log Rows Render Here -->
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <script>
         // --- LOADING SCREEN DISMISSAL ENGINE ---
         window.addEventListener('DOMContentLoaded', () => {
-            // Wait for 3 seconds (matching progress animation) before fading out
             setTimeout(() => {
                 const loadingScreen = document.getElementById('loading-screen');
                 if (loadingScreen) {
@@ -514,7 +652,21 @@
 
         // Runtime Data Storage State
         const dataLog = [];
-        let safeLimit = 22.0;
+        const eventHistory = []; // Stores detailed logs
+        let safeLimit = 22.0; // Stored natively in Celsius
+        let isCelsius = true;
+
+        // --- REAL-TIME DATE & TIME ENGINE ---
+        function updateDateTime() {
+            const now = new Date();
+            const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            
+            document.getElementById('currentDate').innerText = now.toLocaleDateString(undefined, dateOptions);
+            document.getElementById('currentTime').innerText = now.toLocaleTimeString(undefined, timeOptions);
+        }
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
 
         // --- ALARM SOUND CONTROLLER ENGINE ---
         let audioCtx = null;
@@ -584,12 +736,46 @@
         const avgTempEl = document.getElementById('avgTemp');
         const alertBanner = document.getElementById('alertBanner');
         const tempStatusText = document.getElementById('tempStatusText');
+        const thermalStateBadge = document.getElementById('thermalStateBadge');
         const deviceBadge = document.getElementById('deviceBadge');
         const dbBadge = document.getElementById('dbBadge');
         const limitInput = document.getElementById('limitInput');
+        const limitLabel = document.getElementById('limitLabel');
         const themeToggleBtn = document.getElementById('themeToggle');
         const themeIcon = document.getElementById('themeIcon');
         const themeText = document.getElementById('themeText');
+        const unitToggleBtn = document.getElementById('unitToggle');
+        const unitText = document.getElementById('unitText');
+        const telemetryLogBody = document.getElementById('telemetryLogBody');
+
+        // --- TEMPERATURE CONVERSION HELPERS ---
+        function formatTemp(tempInC) {
+            if (isCelsius) {
+                return `${tempInC.toFixed(1)}°C`;
+            } else {
+                const tempInF = (tempInC * 9 / 5) + 32;
+                return `${tempInF.toFixed(1)}°F`;
+            }
+        }
+
+        // Unit Toggle Event Handler
+        unitToggleBtn.addEventListener('click', () => {
+            isCelsius = !isCelsius;
+            if (isCelsius) {
+                unitText.innerText = "Celsius (°C)";
+                limitLabel.innerText = "Safe Appliance Limit (°C)";
+                limitInput.value = safeLimit.toFixed(1);
+            } else {
+                unitText.innerText = "Fahrenheit (°F)";
+                limitLabel.innerText = "Safe Appliance Limit (°F)";
+                limitInput.value = ((safeLimit * 9 / 5) + 32).toFixed(1);
+            }
+
+            if (dataLog.length > 0) {
+                evaluateMetrics(dataLog[dataLog.length - 1]);
+            }
+            renderTableLog();
+        });
 
         // Theme Toggle Handler Engine
         function setTheme(theme) {
@@ -615,7 +801,6 @@
             }
         });
 
-        // Initialize Theme from User Preference Saved History
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'light') {
             setTheme('light');
@@ -623,13 +808,27 @@
             setTheme('dark'); 
         }
 
-        // Track threshold adjustments
         limitInput.addEventListener('input', (e) => {
-            safeLimit = parseFloat(e.target.value) || 22.0;
+            const val = parseFloat(e.target.value);
+            if (!isNaN(val)) {
+                safeLimit = isCelsius ? val : (val - 32) * 5 / 9;
+            }
             if(dataLog.length > 0) evaluateMetrics(dataLog[dataLog.length - 1]);
         });
 
-        // Function to update stats cards and apply conditional color coding
+        // Function to render Table rows
+        function renderTableLog() {
+            telemetryLogBody.innerHTML = eventHistory.map(item => `
+                <tr class="${item.isAlarm ? 'row-alarm' : ''}">
+                    <td>${item.time}</td>
+                    <td>${item.event}</td>
+                    <td>${formatTemp(item.temp)}</td>
+                    <td>${item.status}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Function to update stats cards and apply conditional thermal state logic
         function evaluateMetrics(newTemp) {
             dataLog.push(newTemp);
 
@@ -637,64 +836,96 @@
             const lowest = Math.min(...dataLog);
             const average = dataLog.reduce((a, b) => a + b, 0) / dataLog.length;
 
-            // Render text updates
-            currentTempEl.innerText = `${newTemp.toFixed(1)}°C`;
-            highTempEl.innerText = `${highest.toFixed(1)}°C`;
-            lowTempEl.innerText = `${lowest.toFixed(1)}°C`;
-            avgTempEl.innerText = `${average.toFixed(1)}°C`;
+            currentTempEl.innerText = formatTemp(newTemp);
+            highTempEl.innerText = formatTemp(highest);
+            lowTempEl.innerText = formatTemp(lowest);
+            avgTempEl.innerText = formatTemp(average);
 
-            // Reset dynamic text color classes
             currentTempEl.className = "temp-display";
             tempStatusText.className = "text-muted";
+            thermalStateBadge.className = "state-badge";
 
-            // Apply multi-stage color alert logic
+            let currentEvent = "DATA";
+            let currentStatus = "NORMAL";
+            let isAlarmState = false;
+
             if (newTemp >= safeLimit) {
-                // BREACHED: Critical Red State
                 currentTempEl.classList.add('status-danger');
                 alertBanner.style.display = 'block';
                 tempStatusText.innerText = "Appliance Temperature Critical";
                 tempStatusText.classList.add('status-danger');
                 
-                // Fire the siren synthesizer loop
+                thermalStateBadge.innerText = "CRITICAL BREACH";
+                thermalStateBadge.classList.add('critical');
+                
+                currentEvent = "ALARM";
+                currentStatus = "ALARM DETECTED";
+                isAlarmState = true;
+
                 startSiren();
             } else if (newTemp >= safeLimit - 2.0) {
-                // WARNING: Cautionary Yellow State (within 2°C of limit)
                 currentTempEl.classList.add('status-warning');
                 alertBanner.style.display = 'none';
                 tempStatusText.innerText = "Approaching Limit Alert";
                 tempStatusText.classList.add('status-warning');
                 
-                // Turn off alarm since we are safely out of the red zone
+                thermalStateBadge.innerText = "HIGH HEAT";
+                thermalStateBadge.classList.add('high-heat');
+                
+                currentEvent = "DATA";
+                currentStatus = "HIGH HEAT";
+
                 stopSiren();
             } else {
-                // SAFE: Normal Green State
                 currentTempEl.classList.add('status-safe');
                 alertBanner.style.display = 'none';
                 tempStatusText.innerText = "Appliance Operational Base Stable";
                 tempStatusText.classList.add('status-safe');
                 
-                // Turn off alarm
+                thermalStateBadge.innerText = "NORMAL";
+                thermalStateBadge.classList.add('normal');
+                
+                currentEvent = "DATA";
+                currentStatus = "NORMAL";
+
                 stopSiren();
             }
+
+            // Log event to table array
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString(undefined, { hour12: false });
+            
+            eventHistory.unshift({
+                time: timeStr,
+                event: currentEvent,
+                temp: newTemp,
+                status: currentStatus,
+                isAlarm: isAlarmState
+            });
+
+            // Keep max 10 rows in history table
+            if (eventHistory.length > 10) {
+                eventHistory.pop();
+            }
+
+            renderTableLog();
         }
 
         // Live Environment Simulator
         function simulateDataPipeline() {
-            // Set connection states to active for display
             deviceBadge.className = "badge online";
             deviceBadge.innerText = "Online";
             
-            // Simulating Database connection along with device telemetry logic
             dbBadge.className = "badge connected";
             dbBadge.innerText = "Connected";
 
-            // Base simulation tailored down for functional appliances (cycles roughly 18C - 22.5C)
-            const simulatedRead = 18.0 + (Math.sin(Date.now() / 5000) * 4.5); 
+            // Cycles roughly 18°C to 24°C with occasional spike testing
+            const simulatedRead = 18.0 + (Math.sin(Date.now() / 4000) * 5.0); 
             evaluateMetrics(simulatedRead);
         }
 
-        // Run data pipeline automatically every 1 second for snappy testing feedback
-        setInterval(simulateDataPipeline, 1000);
+        // Run data pipeline every 3 seconds for clean table updates
+        setInterval(simulateDataPipeline, 3000);
         simulateDataPipeline(); 
     </script>
 </body>
