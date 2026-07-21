@@ -943,7 +943,7 @@
 
         // Function to update stats cards and apply conditional thermal state logic
         function evaluateMetrics(newTemp) {
-            dataLog.push(newTemp);
+            dataLog.push(newTemp);simula
 
             const highest = Math.max(...dataLog);
             const lowest = Math.min(...dataLog);
@@ -1028,7 +1028,7 @@
         // Live data pipeline
         function simulateDataPipeline() {
             if (!esp32Connected) {
-                setDeviceBadge('Simulated', 'badge offline');
+                setDeviceBadge('Not Connected', 'badge offline');
                 resetDisplayToZero();
                 return;
             }
