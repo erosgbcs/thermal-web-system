@@ -1158,7 +1158,7 @@
         let activeSensorId = DEFAULT_ROOMS[0].sensors[0].id;
         let isCelsius = true;
         let esp32Sockets = [];
-        let esp32Connections = [false, false, false, false];
+        let esp32Connections = [false, false, false];
         window.ignoreInitialFirebaseTemp = true; // skip first FB snapshot
 
         // ─────────────────────────────────────
@@ -1214,14 +1214,12 @@
         const $esp32HostInputs = [
             document.getElementById('esp32HostInput1'),
             document.getElementById('esp32HostInput2'),
-            document.getElementById('esp32HostInput3'),
-            document.getElementById('esp32HostInput4')
+            document.getElementById('esp32HostInput3')
         ];
         const $deviceBadges = [
             document.getElementById('deviceBadge1'),
             document.getElementById('deviceBadge2'),
             document.getElementById('deviceBadge3'),
-            document.getElementById('deviceBadge4')
         ];
         const $roomTabs = document.getElementById('roomTabs');
         const $sensorCardsGrid = document.getElementById('sensorCardsGrid');
@@ -1278,37 +1276,39 @@
         let audioCtx = null;
         let sirenNodes = null;
         let isAuthenticated = false;
+        let lastSirenStart = 0;
 
         function startSiren() {
             if (!isAuthenticated) return;
             if (sirenNodes) return;
+
+            const now = Date.now();
+            if (now - lastSirenStart < 2000) return;
+            lastSirenStart = now;
+
             try {
                 if (!audioCtx) audioCtx = new(window.AudioContext || window.webkitAudioContext)();
                 if (audioCtx.state === 'suspended') audioCtx.resume();
+
                 const osc = audioCtx.createOscillator();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(650, audioCtx.currentTime);
-                const mod = audioCtx.createOscillator();
-                mod.type = 'sine';
-                mod.frequency.setValueAtTime(3, audioCtx.currentTime);
-                const modGain = audioCtx.createGain();
-                modGain.gain.setValueAtTime(150, audioCtx.currentTime);
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(420, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(360, audioCtx.currentTime + 0.3);
+
                 const vol = audioCtx.createGain();
-                vol.gain.setValueAtTime(0.15, audioCtx.currentTime);
-                mod.connect(modGain);
-                modGain.connect(osc.frequency);
+                vol.gain.setValueAtTime(0.02, audioCtx.currentTime);
+                vol.gain.linearRampToValueAtTime(0.018, audioCtx.currentTime + 0.25);
+
                 osc.connect(vol);
                 vol.connect(audioCtx.destination);
-                mod.start();
                 osc.start();
-                sirenNodes = { oscillator: osc, modulator: mod };
+                sirenNodes = { oscillator: osc };
             } catch (e) { console.error('Siren init error:', e); }
         }
 
         function stopSiren() {
             if (sirenNodes) {
-                try { sirenNodes.oscillator.stop();
-                    sirenNodes.modulator.stop(); } catch (e) {}
+                try { sirenNodes.oscillator.stop(); } catch (e) {}
                 sirenNodes = null;
             }
         }
@@ -1676,7 +1676,6 @@
 
         function connectToEsp32(index) {
             const host = ($esp32HostInputs[index].value || '').trim();
-            const socketKey = index;
 
             if (!host) {
                 esp32Connections[index] = false;
@@ -1703,11 +1702,34 @@
                 socket.addEventListener('open', () => {
                     esp32Connections[index] = true;
                     setDeviceBadge(index, 'ESP32 Connected', 'badge online');
+
+                    const currentLimit = parseFloat($limitInput.value);
+                    if (!isNaN(currentLimit)) {
+                        socket.send(JSON.stringify({
+                            type: 'connected',
+                            safeLimit: toCelsius(currentLimit)
+                        }));
+                        socket.send(JSON.stringify({ type: 'requestTelemetry' }));
+                        console.log(`[ESP32 #${index}] Connected and requested initial sync.`);
+                    }
                 });
 
                 socket.addEventListener('message', (event) => {
                     try {
                         const payload = JSON.parse(event.data);
+
+                        if (payload.safeLimit !== undefined) {
+                            const syncedLimit = parseFloat(payload.safeLimit);
+                            if (!isNaN(syncedLimit)) {
+                                const activeSensor = getActiveSensorData();
+                                if (activeSensor) {
+                                    activeSensor.safeLimit = syncedLimit;
+                                }
+                                $limitInput.value = fromCelsius(syncedLimit).toFixed(1);
+                                console.log(`[ESP32 #${index}] Received synced threshold from ESP32: ${syncedLimit}°C`);
+                            }
+                        }
+
                         if (payload.temperature !== undefined) {
                             const numericTemp = parseFloat(payload.temperature);
                             if (!isNaN(numericTemp)) {
@@ -1716,7 +1738,9 @@
                                 evaluateMetrics(rId, sId, numericTemp);
                             }
                         }
-                    } catch (e) { console.error('Invalid ESP32 payload:', e); }
+                    } catch (e) {
+                        console.error('Invalid ESP32 payload:', e);
+                    }
                 });
 
                 socket.addEventListener('close', () => {
