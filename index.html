@@ -191,7 +191,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: var(--overlay-bg);
+            background-color: var(--bg-base);
             z-index: 8888;
             display: flex;
             align-items: center;
@@ -1052,9 +1052,6 @@
                         <span class="text-muted">ESP32 Unit 3</span>
                         <span id="deviceBadge3" class="badge offline">Offline</span>
                     </div>
-                    <div class="status-row">
-                        <span class="text-muted">ESP32 Unit 4</span>
-                        <span id="deviceBadge4" class="badge offline">Offline</span>
                     </div>
                     <div class="status-row">
                         <span class="text-muted">Database</span>
@@ -1081,10 +1078,6 @@
                         <div>
                             <label for="esp32HostInput3" style="margin-bottom:0.5rem;">ESP32 Host / IP 3</label>
                             <input type="text" id="esp32HostInput3" class="esp32-host-input" placeholder="192.168.1.52" />
-                        </div>
-                        <div>
-                            <label for="esp32HostInput4" style="margin-bottom:0.5rem;">ESP32 Host / IP 4</label>
-                            <input type="text" id="esp32HostInput4" class="esp32-host-input" placeholder="192.168.1.53" />
                         </div>
                     </div>
                 </div>
@@ -1284,8 +1277,10 @@
         // ─────────────────────────────────────
         let audioCtx = null;
         let sirenNodes = null;
+        let isAuthenticated = false;
 
         function startSiren() {
+            if (!isAuthenticated) return;
             if (sirenNodes) return;
             try {
                 if (!audioCtx) audioCtx = new(window.AudioContext || window.webkitAudioContext)();
@@ -1607,22 +1602,30 @@
         // SAFE LIMIT INPUT
         // ─────────────────────────────────────
         $limitInput.addEventListener('input', () => {
-            const val = parseFloat($limitInput.value);
-            if (!isNaN(val)) {
-                const celsiusVal = toCelsius(val);
-                const sd = getActiveSensorData();
-                if (sd) {
-                    sd.safeLimit = celsiusVal;
-                    // Re-evaluate status with new limit
-                    if (sd.currentTemp !== null) {
-                        if (sd.currentTemp >= sd.safeLimit) sd.status = 'CRITICAL';
-                        else if (sd.currentTemp >= sd.safeLimit - 2.0) sd.status = 'HIGH_HEAT';
-                        else sd.status = 'NORMAL';
-                        refreshHeroDisplay();
-                    }
+    const val = parseFloat($limitInput.value);
+    if (!isNaN(val)) {
+        const celsiusVal = toCelsius(val);
+        const sd = getActiveSensorData();
+        if (sd) {
+            sd.safeLimit = celsiusVal;
+
+            // --- ADD THIS CODE BELOW TO TRANSMIT THRESHOLD TO ESP32 ---
+            esp32Sockets.forEach(socket => {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({ safeLimit: celsiusVal }));
                 }
+            });
+            // ---------------------------------------------------------
+
+            if (sd.currentTemp !== null) {
+                if (sd.currentTemp >= sd.safeLimit) sd.status = 'CRITICAL';
+                else if (sd.currentTemp >= sd.safeLimit - 2.0) sd.status = 'HIGH_HEAT';
+                else sd.status = 'NORMAL';
+                refreshHeroDisplay();
             }
-        });
+        }
+    }
+});
 
         // ─────────────────────────────────────
         // UNIT TOGGLE
@@ -1800,13 +1803,16 @@
         });
 
         function showDashboard() {
+            isAuthenticated = true;
             $authScreen.classList.add('hidden');
             $dashboardContainer.classList.add('visible');
         }
 
         function showAuthScreen() {
+            isAuthenticated = false;
             $authScreen.classList.remove('hidden');
             $dashboardContainer.classList.remove('visible');
+            stopSiren();
         }
 
         // Expose for Firebase auth module
@@ -1940,7 +1946,7 @@
 
         window.publishEventHistoryToDatabase = async function(eventEntry) {
             try {
-                const eventId = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+                const eventId = `${Date.now()}-${eventEntry.roomId || 'room'}-${eventEntry.sensorId || 'sensor'}`;
                 await set(ref(database, `eventHistory/${eventId}`), eventEntry);
             } catch (e) {
                 console.error('FB history write failed:', e);
