@@ -1159,6 +1159,7 @@
         let isCelsius = true;
         let esp32Sockets = [];
         let esp32Connections = [false, false, false];
+        let monitoringEnabled = false;
         window.ignoreInitialFirebaseTemp = true; // skip first FB snapshot
 
         // ─────────────────────────────────────
@@ -1476,6 +1477,7 @@
         // EVALUATE METRICS (called on new temp)
         // ─────────────────────────────────────
         function evaluateMetrics(roomId, sensorId, newTemp) {
+            if (!isAuthenticated || !monitoringEnabled) return;
             const key = `${roomId}_${sensorId}`;
             let sd = sensorsData[key];
             if (!sd) {
@@ -1675,6 +1677,11 @@
         }
 
         function connectToEsp32(index) {
+            if (!isAuthenticated || !monitoringEnabled) {
+                setDeviceBadge(index, 'Not Connected', 'badge offline');
+                return;
+            }
+
             const host = ($esp32HostInputs[index].value || '').trim();
 
             if (!host) {
@@ -1828,12 +1835,26 @@
 
         function showDashboard() {
             isAuthenticated = true;
+            monitoringEnabled = true;
+            renderRoomTabs();
+            renderSensorCards();
+            refreshHeroDisplay();
+            renderTableLog();
+            updateLimitInputForActiveSensor();
             $authScreen.classList.add('hidden');
             $dashboardContainer.classList.add('visible');
+            $esp32HostInputs.forEach((input, index) => {
+                const savedHost = localStorage.getItem(`esp32Host${index + 1}`) || '';
+                if (savedHost) {
+                    input.value = savedHost;
+                    connectToEsp32(index);
+                }
+            });
         }
 
         function showAuthScreen() {
             isAuthenticated = false;
+            monitoringEnabled = false;
             $authScreen.classList.remove('hidden');
             $dashboardContainer.classList.remove('visible');
             stopSiren();
