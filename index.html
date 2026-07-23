@@ -967,22 +967,15 @@
     <div id="auth-screen">
         <div class="auth-card">
             <img class="auth-logo" src="logo.png" alt="Logo" onerror="this.style.display='none'" />
-            <div class="auth-title">Welcome Back</div>
-            <div class="auth-subtitle">Sign in to access the monitoring dashboard</div>
-            <div class="auth-tabs">
-                <button class="auth-tab active" id="tabSignIn">Sign In</button>
-                <button class="auth-tab" id="tabSignUp">Sign Up</button>
-            </div>
-            <input type="email" class="auth-input" id="authEmail" placeholder="Email address" autocomplete="email" />
+            <div class="auth-title">Admin Access</div>
+            <div class="auth-subtitle">Sign in with your dedicated admin account</div>
+            <input type="email" class="auth-input" id="authEmail" placeholder="Admin email address" autocomplete="email" />
             <div class="password-row">
-                <input type="password" class="auth-input" id="authPassword" placeholder="Password" autocomplete="current-password" />
+                <input type="password" class="auth-input" id="authPassword" placeholder="Admin password" autocomplete="current-password" />
                 <button type="button" class="password-toggle-btn" id="passwordToggleBtn">Show</button>
             </div>
             <div class="auth-links-row">
                 <button type="button" class="auth-link-btn" id="forgotPasswordBtn">Forgot password?</button>
-            </div>
-            <div id="authDisplayNameGroup" style="display:none;">
-                <input type="text" class="auth-input" id="authDisplayName" placeholder="Display Name (optional)" autocomplete="name" />
             </div>
             <button class="auth-btn" id="authSubmitBtn">Sign In</button>
             <div class="auth-error" id="authError"></div>
@@ -1203,12 +1196,9 @@
         const $authSubmitBtn = document.getElementById('authSubmitBtn');
         const $authEmail = document.getElementById('authEmail');
         const $authPassword = document.getElementById('authPassword');
-        const $authDisplayName = document.getElementById('authDisplayName');
-        const $authDisplayNameGroup = document.getElementById('authDisplayNameGroup');
         const $tabSignIn = document.getElementById('tabSignIn');
-        const $tabSignUp = document.getElementById('tabSignUp');
 
-        window.authMode = 'signin'; // 'signin' | 'signup'
+        window.authMode = 'signin';
 
         // ─────────────────────────────────────
         // DATE / TIME
@@ -1804,19 +1794,7 @@
 
         $tabSignIn.addEventListener('click', () => {
             window.authMode = 'signin';
-            $tabSignIn.classList.add('active');
-            $tabSignUp.classList.remove('active');
             $authSubmitBtn.innerText = 'Sign In';
-            $authDisplayNameGroup.style.display = 'none';
-            $authError.innerText = '';
-            $authSuccess.innerText = '';
-        });
-        $tabSignUp.addEventListener('click', () => {
-            window.authMode = 'signup';
-            $tabSignUp.classList.add('active');
-            $tabSignIn.classList.remove('active');
-            $authSubmitBtn.innerText = 'Sign Up';
-            $authDisplayNameGroup.style.display = 'block';
             $authError.innerText = '';
             $authSuccess.innerText = '';
         });
@@ -1861,8 +1839,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged,
-            updateProfile, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+            sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCuq5d5FKDlahLEkzVCHLqrScNhNHl2iIs",
@@ -1904,17 +1882,16 @@
         $authSubmitBtn.addEventListener('click', async () => {
             const email = $authEmail.value.trim();
             const password = $authPassword.value.trim();
-            const mode = window.authMode || 'signin';
 
             $authError.innerText = '';
             $authSuccess.innerText = '';
 
             if (!email || !password) {
-                $authError.innerText = 'Please enter both email and password.';
+                $authError.innerText = 'Please enter both admin email and password.';
                 return;
             }
             if (password.length < 6) {
-                $authError.innerText = 'Password must be at least 6 characters.';
+                $authError.innerText = 'Admin password must be at least 6 characters.';
                 return;
             }
 
@@ -1922,33 +1899,23 @@
             $authSubmitBtn.innerText = 'Please wait...';
 
             try {
-                if (mode === 'signup') {
-                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                    const displayName = $authDisplayName.value.trim() || email.split('@')[0];
-                    await updateProfile(userCredential.user, { displayName });
-                    $authSuccess.innerText = 'Account created! Welcome aboard.';
-                } else {
-                    await signInWithEmailAndPassword(auth, email, password);
-                }
+                await signInWithEmailAndPassword(auth, email, password);
             } catch (error) {
                 console.error('Auth error:', error);
-                let msg = error.message || 'Authentication failed.';
-                if (error.code === 'auth/user-not-found') msg = 'No account found with this email.';
-                if (error.code === 'auth/wrong-password') msg = 'Incorrect password. Please try again.';
-                if (error.code === 'auth/email-already-in-use') msg = 'This email is already registered. Please sign in.';
-                if (error.code === 'auth/invalid-email') msg = 'Invalid email address format.';
-                if (error.code === 'auth/weak-password') msg = 'Password is too weak. Use at least 6 characters.';
+                let msg = error.message || 'Admin authentication failed.';
+                if (error.code === 'auth/user-not-found') msg = 'No admin account found with this email.';
+                if (error.code === 'auth/wrong-password') msg = 'Incorrect admin password. Please try again.';
+                if (error.code === 'auth/invalid-email') msg = 'Invalid admin email address format.';
                 $authError.innerText = msg;
             } finally {
                 $authSubmitBtn.disabled = false;
-                $authSubmitBtn.innerText = mode === 'signup' ? 'Sign Up' : 'Sign In';
+                $authSubmitBtn.innerText = 'Sign In';
             }
         });
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !$authScreen.classList.contains('hidden') && document.activeElement &&
-                (document.activeElement.id === 'authEmail' || document.activeElement.id === 'authPassword' ||
-                    document.activeElement.id === 'authDisplayName')) {
+                (document.activeElement.id === 'authEmail' || document.activeElement.id === 'authPassword')) {
                 $authSubmitBtn.click();
             }
         });
