@@ -820,7 +820,6 @@
             #loading-screen,
             #auth-screen,
             .header-controls,
-            .room-tabs,
             .sensor-cards-grid,
             .dashboard .hero-card,
             .dashboard .sidebar,
@@ -886,13 +885,6 @@
             }
             .sensor-cards-grid {
                 grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            }
-            .room-tabs {
-                gap: 0.3rem;
-            }
-            .room-tab {
-                padding: 0.5rem 0.9rem;
-                font-size: 0.78rem;
             }
         }
     </style>
@@ -963,9 +955,6 @@
                 </button>
             </div>
         </div>
-
-        <!-- Room Tabs -->
-        <div class="room-tabs" id="roomTabs"></div>
 
         <!-- Sensor Mini-Cards -->
         <div class="sensor-cards-grid" id="sensorCardsGrid"></div>
@@ -1145,7 +1134,6 @@
         const $deviceBadges = [
             document.getElementById('deviceBadge1')
         ];
-        const $roomTabs = document.getElementById('roomTabs');
         const $sensorCardsGrid = document.getElementById('sensorCardsGrid');
         const $authScreen = document.getElementById('auth-screen');
         const $dashboardContainer = document.getElementById('dashboard-container');
@@ -1238,43 +1226,6 @@
         }, { once: true });
 
         // ─────────────────────────────────────
-        // RENDER ROOM TABS
-        // ─────────────────────────────────────
-        function renderRoomTabs() {
-            $roomTabs.innerHTML = DEFAULT_ROOMS.map(room => {
-                const hasAlarm = room.sensors.some(s => {
-                    const sd = sensorsData[`${room.id}_${s.id}`];
-                    return sd && sd.status === 'CRITICAL';
-                });
-                return `<button class="room-tab${room.id === activeRoomId ? ' active' : ''}${hasAlarm ?
-                ' has-alarm' : ''}"
-                    data-room="${room.id}" title="${room.name}${hasAlarm ? ' ⚠ ALARM' : ''}">
-                    ${room.name}${hasAlarm ? ' 🔴' : ''}
-                  </button>`;
-            }).join('');
-
-            // Click handlers
-            $roomTabs.querySelectorAll('.room-tab').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const roomId = btn.getAttribute('data-room');
-                    switchRoom(roomId);
-                });
-            });
-        }
-
-        function switchRoom(roomId) {
-            activeRoomId = roomId;
-            const room = DEFAULT_ROOMS.find(r => r.id === roomId);
-            if (room && room.sensors.length > 0) {
-                activeSensorId = room.sensors[0].id;
-            }
-            renderRoomTabs();
-            renderSensorCards();
-            refreshHeroDisplay();
-            updateLimitInputForActiveSensor();
-        }
-
-        // ─────────────────────────────────────
         // RENDER SENSOR CARDS
         // ─────────────────────────────────────
         function renderSensorCards() {
@@ -1309,7 +1260,6 @@
                     const roomId = card.getAttribute('data-room');
                     activeRoomId = roomId;
                     activeSensorId = sensorId;
-                    renderRoomTabs();
                     renderSensorCards();
                     refreshHeroDisplay();
                     updateLimitInputForActiveSensor();
@@ -1389,7 +1339,6 @@
 
             // Update sensor mini-cards
             renderSensorCards();
-            renderRoomTabs();
             renderTableLog();
         }
 
@@ -1472,9 +1421,8 @@
             if (roomId === activeRoomId && sensorId === activeSensorId) {
                 refreshHeroDisplay();
             } else {
-                // Still refresh cards/tabs for alarm indicators
+                // Still refresh cards for alarm indicators
                 renderSensorCards();
-                renderRoomTabs();
                 renderTableLog();
             }
         }
@@ -1722,7 +1670,6 @@
         // ─────────────────────────────────────
         // INITIAL UI RENDER
         // ─────────────────────────────────────
-        renderRoomTabs();
         renderSensorCards();
         refreshHeroDisplay();
         renderTableLog();
@@ -1760,7 +1707,6 @@
         function showDashboard() {
             isAuthenticated = true;
             monitoringEnabled = true;
-            renderRoomTabs();
             renderSensorCards();
             refreshHeroDisplay();
             renderTableLog();
