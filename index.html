@@ -1162,7 +1162,7 @@
             document.getElementById('currentDate').innerText = now.toLocaleDateString(undefined, dateOpts);
             document.getElementById('currentTime').innerText = now.toLocaleTimeString(undefined, timeOpts);
         }
-        setInterval(updateDateTime, 1000);
+        setInterval(updateDateTime, 250);
         updateDateTime();
 
         // ─────────────────────────────────────
