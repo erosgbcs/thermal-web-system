@@ -1082,6 +1082,8 @@
         // ─────────────────────────────────────
         // INIT SENSOR DATA STRUCTURES
         // ─────────────────────────────────────
+        // Creates the per-appliance state object for every default sensor so the dashboard
+        // can keep track of temperature history, safe threshold, and status for each device.
         function initSensorsData() {
             DEFAULT_ROOMS.forEach(room => {
                 room.sensors.forEach(sensor => {
@@ -1103,11 +1105,13 @@
         }
         initSensorsData();
 
+        // Returns the active appliance's current state object for the selected room/sensor pair.
         function getActiveSensorData() {
             const key = `${activeRoomId}_${activeSensorId}`;
             return sensorsData[key] || null;
         }
 
+        // Builds the lookup key used to retrieve the active sensor's state from sensorsData.
         function getActiveKey() {
             return `${activeRoomId}_${activeSensorId}`;
         }
@@ -1150,6 +1154,7 @@
         // ─────────────────────────────────────
         // DATE / TIME
         // ─────────────────────────────────────
+        // Keeps the header clock synchronized with the user's local system time.
         function updateDateTime() {
             const now = new Date();
             const dateOpts = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
@@ -1163,6 +1168,7 @@
         // ─────────────────────────────────────
         // TEMP FORMATTING
         // ─────────────────────────────────────
+        // Converts the stored Celsius temperature into the currently selected display unit.
         function formatTemp(tempInC) {
             if (tempInC === null || tempInC === undefined || isNaN(tempInC)) return '--.-°C';
             if (isCelsius) return `${tempInC.toFixed(1)}°C`;
@@ -1170,11 +1176,13 @@
             return `${tempInF.toFixed(1)}°F`;
         }
 
+        // Converts a displayed Fahrenheit value back into Celsius for internal threshold logic.
         function toCelsius(val) {
             if (isCelsius) return val;
             return (val - 32) * 5 / 9;
         }
 
+        // Converts an internal Celsius value into the current UI unit for the limit input.
         function fromCelsius(val) {
             if (isCelsius) return val;
             return (val * 9 / 5) + 32;
@@ -1290,6 +1298,7 @@ document.body.addEventListener('click', () => {
         // ─────────────────────────────────────
         // RENDER SENSOR CARDS
         // ─────────────────────────────────────
+        // Draws the appliance mini-cards for the active room and marks the selected sensor visually.
         function renderSensorCards() {
             const room = DEFAULT_ROOMS.find(r => r.id === activeRoomId);
             if (!room) { $sensorCardsGrid.innerHTML = ''; return; }
@@ -1329,6 +1338,7 @@ document.body.addEventListener('click', () => {
             });
         }
 
+        // Keeps the safe-limit input synchronized with the currently selected appliance's threshold.
         function updateLimitInputForActiveSensor() {
             const sd = getActiveSensorData();
             if (sd) {
@@ -1339,6 +1349,7 @@ document.body.addEventListener('click', () => {
         // ─────────────────────────────────────
         // REFRESH HERO + STATS
         // ─────────────────────────────────────
+        // Updates the primary live readout, status badge, alert banner, and summary metrics for the active sensor.
         function refreshHeroDisplay() {
             const sd = getActiveSensorData();
             if (!sd || sd.currentTemp === null) {
@@ -1407,6 +1418,7 @@ document.body.addEventListener('click', () => {
         // ─────────────────────────────────────
         // EVALUATE METRICS (called on new temp)
         // ─────────────────────────────────────
+        // Processes a temperature sample, updates the appliance status, and appends a new event to the history log.
         function evaluateMetrics(roomId, sensorId, newTemp) {
             if (!isAuthenticated || !monitoringEnabled) return;
             const key = `${roomId}_${sensorId}`;
@@ -1492,6 +1504,7 @@ document.body.addEventListener('click', () => {
         // ─────────────────────────────────────
         // RENDER LOG TABLE
         // ─────────────────────────────────────
+        // Converts the stored log timestamp into a readable time string for the history table.
         function formatHistoryTime(entry) {
             if (entry && entry.timestamp) {
                 return new Date(entry.timestamp).toLocaleTimeString(undefined, { hour12: false });
@@ -1499,6 +1512,7 @@ document.body.addEventListener('click', () => {
             return entry && entry.time ? entry.time : '--:--:--';
         }
 
+        // Renders the most recent event history rows in descending timestamp order.
         function renderTableLog() {
             globalEventHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
             const entries = globalEventHistory.slice(0, 100);
@@ -1591,6 +1605,7 @@ document.body.addEventListener('click', () => {
         // ─────────────────────────────────────
         // THEME TOGGLE
         // ─────────────────────────────────────
+        // Switches the page between light and dark color themes and saves the user choice.
         function setTheme(theme) {
             if (theme === 'light') {
                 document.documentElement.setAttribute('data-theme', 'light');
@@ -1615,6 +1630,7 @@ document.body.addEventListener('click', () => {
         // ─────────────────────────────────────
         // ESP32 WEBSOCKET
         // ─────────────────────────────────────
+        // Updates the ESP32 connection badge label and styling based on the current device state.
         function setDeviceBadge(index, text, cls) {
             const badge = $deviceBadges[index];
             if (!badge) return;
@@ -1622,6 +1638,7 @@ document.body.addEventListener('click', () => {
             badge.className = cls;
         }
 
+        // Opens a WebSocket connection to the configured ESP32 endpoint and handles live telemetry messages.
         function connectToEsp32(index) {
             if (!isAuthenticated || !monitoringEnabled) {
                 setDeviceBadge(index, 'Not Connected', 'badge offline');
@@ -1766,6 +1783,7 @@ document.body.addEventListener('click', () => {
             $authSuccess.innerText = '';
         });
 
+        // Reveals the authenticated dashboard and enables monitoring after a valid admin sign-in.
         function showDashboard() {
             isAuthenticated = true;
             monitoringEnabled = true;
@@ -1784,6 +1802,7 @@ document.body.addEventListener('click', () => {
             });
         }
 
+        // Hides the dashboard and restores the admin authentication screen when the session is signed out.
         function showAuthScreen() {
             isAuthenticated = false;
             monitoringEnabled = false;
@@ -1900,6 +1919,7 @@ document.body.addEventListener('click', () => {
         });
 
         // ── PUBLISH HELPERS ──
+        // Publishes the latest temperature reading to Firebase for persistence and cross-client syncing.
         window.publishTemperatureToDatabase = async function(roomId, sensorId, value) {
             const telemetryKey = `${roomId}_${sensorId}`;
             const numericValue = Number(value);
@@ -1914,6 +1934,7 @@ document.body.addEventListener('click', () => {
             }
         };
 
+        // Saves a new event-record entry into Firebase to keep the history log synchronized across devices.
         window.publishEventHistoryToDatabase = async function(eventEntry) {
             try {
                 const eventId = `${Date.now()}-${eventEntry.roomId || 'room'}-${eventEntry.sensorId || 'sensor'}`;
