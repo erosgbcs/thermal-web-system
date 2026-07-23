@@ -1045,15 +1045,6 @@
                         <span id="deviceBadge1" class="badge offline">Offline</span>
                     </div>
                     <div class="status-row">
-                        <span class="text-muted">ESP32 Unit 2</span>
-                        <span id="deviceBadge2" class="badge offline">Offline</span>
-                    </div>
-                    <div class="status-row">
-                        <span class="text-muted">ESP32 Unit 3</span>
-                        <span id="deviceBadge3" class="badge offline">Offline</span>
-                    </div>
-                    </div>
-                    <div class="status-row">
                         <span class="text-muted">Database</span>
                         <span id="dbBadge" class="badge disconnected">Disconnected</span>
                     </div>
@@ -1068,16 +1059,8 @@
                     <input type="number" id="limitInput" value="50.0" min="0" max="150" step="0.5" />
                     <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:0.85rem;">
                         <div>
-                            <label for="esp32HostInput1" style="margin-bottom:0.5rem;">ESP32 Host / IP 1</label>
+                            <label for="esp32HostInput1" style="margin-bottom:0.5rem;">ESP32 Host / IP</label>
                             <input type="text" id="esp32HostInput1" class="esp32-host-input" placeholder="192.168.1.50" />
-                        </div>
-                        <div>
-                            <label for="esp32HostInput2" style="margin-bottom:0.5rem;">ESP32 Host / IP 2</label>
-                            <input type="text" id="esp32HostInput2" class="esp32-host-input" placeholder="192.168.1.51" />
-                        </div>
-                        <div>
-                            <label for="esp32HostInput3" style="margin-bottom:0.5rem;">ESP32 Host / IP 3</label>
-                            <input type="text" id="esp32HostInput3" class="esp32-host-input" placeholder="192.168.1.52" />
                         </div>
                     </div>
                 </div>
@@ -1136,19 +1119,11 @@
             { id: 'room1', name: 'Room-1', sensors: [
                     { id: 'sensor1', name: 'Refrigerator' },
                     { id: 'sensor2', name: 'Oven' },
-                    { id: 'sensor3', name: 'Microwave' }] },
-            { id: 'room2', name: 'Room-2', sensors: [
-                    { id: 'sensor1', name: 'Television' },
-                    { id: 'sensor2', name: 'Air Conditioner' },
-                    { id: 'sensor3', name: 'Sound System' }] },
-            { id: 'room3', name: 'Room-3', sensors: [
-                    { id: 'sensor1', name: 'Air Conditioner' },
-                    { id: 'sensor2', name: 'Electric Fan' },
-                    { id: 'sensor3', name: 'Lamp' }] },
-            { id: 'room4', name: 'Room-4', sensors: [
-                    { id: 'sensor1', name: 'Power Tools' },
-                    { id: 'sensor2', name: 'Charger Station' },
-                    { id: 'sensor3', name: 'Freezer' }] }
+                    { id: 'sensor3', name: 'Microwave' },
+                    { id: 'sensor4', name: 'Toaster' },
+                    { id: 'sensor5', name: 'TV' },
+                    { id: 'sensor6', name: 'Toaster' },
+                    { id: 'sensor7', name: 'ElectricFan' }] }
         ];
 
         // Per-sensor data: key = "roomId_sensorId"
@@ -1158,7 +1133,7 @@
         let activeSensorId = DEFAULT_ROOMS[0].sensors[0].id;
         let isCelsius = true;
         let esp32Sockets = [];
-        let esp32Connections = [false, false, false];
+        let esp32Connections = [false];
         let monitoringEnabled = false;
         window.ignoreInitialFirebaseTemp = true; // skip first FB snapshot
 
@@ -1213,14 +1188,10 @@
         const $limitLabel = document.getElementById('limitLabel');
         const $telemetryLogBody = document.getElementById('telemetryLogBody');
         const $esp32HostInputs = [
-            document.getElementById('esp32HostInput1'),
-            document.getElementById('esp32HostInput2'),
-            document.getElementById('esp32HostInput3')
+            document.getElementById('esp32HostInput1')
         ];
         const $deviceBadges = [
-            document.getElementById('deviceBadge1'),
-            document.getElementById('deviceBadge2'),
-            document.getElementById('deviceBadge3'),
+            document.getElementById('deviceBadge1')
         ];
         const $roomTabs = document.getElementById('roomTabs');
         const $sensorCardsGrid = document.getElementById('sensorCardsGrid');
@@ -1717,7 +1688,7 @@
                             safeLimit: toCelsius(currentLimit)
                         }));
                         socket.send(JSON.stringify({ type: 'requestTelemetry' }));
-                        console.log(`[ESP32 #${index}] Connected and requested initial sync.`);
+                        console.log(`[ESP32 #${index + 1}] Connected and requested initial sync.`);
                     }
                 });
 
@@ -1733,7 +1704,7 @@
                                     activeSensor.safeLimit = syncedLimit;
                                 }
                                 $limitInput.value = fromCelsius(syncedLimit).toFixed(1);
-                                console.log(`[ESP32 #${index}] Received synced threshold from ESP32: ${syncedLimit}°C`);
+                                console.log(`[ESP32 #${index + 1}] Received synced threshold from ESP32: ${syncedLimit}°C`);
                             }
                         }
 
