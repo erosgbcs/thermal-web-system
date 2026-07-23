@@ -1158,7 +1158,7 @@
         function updateDateTime() {
             const now = new Date();
             const dateOpts = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
-            const timeOpts = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            const timeOpts = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
             document.getElementById('currentDate').innerText = now.toLocaleDateString(undefined, dateOpts);
             document.getElementById('currentTime').innerText = now.toLocaleTimeString(undefined, timeOpts);
         }
@@ -1462,7 +1462,7 @@ document.body.addEventListener('click', () => {
             if (shouldLogEvent) {
                 // Log to global event history
                 const now = new Date();
-                const timeStr = now.toLocaleTimeString(undefined, { hour12: false });
+                const timeStr = now.toLocaleTimeString(undefined, { hour12: true });
                 const eventEntry = {
                     timestamp: Date.now(),
                     time: timeStr,
@@ -1507,7 +1507,7 @@ document.body.addEventListener('click', () => {
         // Converts the stored log timestamp into a readable time string for the history table.
         function formatHistoryTime(entry) {
             if (entry && entry.timestamp) {
-                return new Date(entry.timestamp).toLocaleTimeString(undefined, { hour12: false });
+                return new Date(entry.timestamp).toLocaleTimeString(undefined, { hour12: true });
             }
             return entry && entry.time ? entry.time : '--:--:--';
         }
