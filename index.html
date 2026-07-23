@@ -1954,7 +1954,7 @@ document.body.addEventListener('click', () => {
                         id,
                         ...(value || {}),
                         timestamp: value?.timestamp || Date.now(),
-                        time: value?.time || new Date(value?.timestamp || Date.now()).toLocaleTimeString(undefined, { hour12: false })
+                        time: value?.time || new Date(value?.timestamp || Date.now()).toLocaleTimeString(undefined, { hour12: true })
                     }))
                     .filter(e => e && typeof e === 'object')
                     .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
