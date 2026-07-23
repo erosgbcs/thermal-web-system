@@ -1626,7 +1626,16 @@ document.body.addEventListener('click', () => {
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'light') setTheme('light');
         else setTheme('dark');
-
+        // Helper to send temperature unit selection to the ESP32
+function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
+    if (typeof esp32Sockets !== 'undefined' && Array.isArray(esp32Sockets)) {
+        esp32Sockets.forEach(socket => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ unit: unitType }));
+            }
+        });
+    }
+}
         // ─────────────────────────────────────
         // ESP32 WEBSOCKET
         // ─────────────────────────────────────
