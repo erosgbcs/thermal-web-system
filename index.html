@@ -1135,6 +1135,7 @@
         let esp32Sockets = [];
         let esp32Connections = [false];
         let monitoringEnabled = false;
+        const lastPublishedTelemetry = new Map();
         window.ignoreInitialFirebaseTemp = true; // skip first FB snapshot
 
         // ─────────────────────────────────────
@@ -1469,6 +1470,8 @@
                 sd = sensorsData[key];
             }
 
+            const previousTemp = sd.currentTemp;
+            const previousStatus = sd.status;
             sd.dataLog.push(newTemp);
             sd.currentTemp = newTemp;
 
@@ -1481,31 +1484,38 @@
                 sd.status = 'NORMAL';
             }
 
-            // Log to global event history
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString(undefined, { hour12: false });
-            const eventEntry = {
-                timestamp: Date.now(),
-                time: timeStr,
-                roomId: sd.roomId,
-                roomName: sd.roomName,
-                sensorId: sd.sensorId,
-                sensorName: sd.sensorName,
-                event: sd.status === 'CRITICAL' ? 'ALARM' : 'DATA',
-                temp: newTemp,
-                status: sd.status === 'CRITICAL' ? 'ALARM DETECTED' : sd.status === 'HIGH_HEAT' ? 'HIGH HEAT' :
-                    'NORMAL',
-                isAlarm: sd.status === 'CRITICAL'
-            };
-            globalEventHistory.unshift(eventEntry);
+            const tempChanged = previousTemp === null || Math.abs(previousTemp - newTemp) > 0.001;
+            const statusChanged = previousStatus !== sd.status;
+            const shouldLogEvent = tempChanged || statusChanged;
 
-            // Keep log manageable
-            if (globalEventHistory.length > 500) globalEventHistory.length = 500;
+            if (shouldLogEvent) {
+                // Log to global event history
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString(undefined, { hour12: false });
+                const eventEntry = {
+                    timestamp: Date.now(),
+                    time: timeStr,
+                    roomId: sd.roomId,
+                    roomName: sd.roomName,
+                    sensorId: sd.sensorId,
+                    sensorName: sd.sensorName,
+                    event: sd.status === 'CRITICAL' ? 'ALARM' : 'DATA',
+                    temp: newTemp,
+                    status: sd.status === 'CRITICAL' ? 'ALARM DETECTED' : sd.status === 'HIGH_HEAT' ? 'HIGH HEAT' :
+                        'NORMAL',
+                    isAlarm: sd.status === 'CRITICAL'
+                };
+                globalEventHistory.unshift(eventEntry);
 
-            // Publish to Firebase if available
-            if (typeof window.publishEventHistoryToDatabase === 'function') {
-                window.publishEventHistoryToDatabase(eventEntry);
+                // Keep log manageable
+                if (globalEventHistory.length > 500) globalEventHistory.length = 500;
+
+                // Publish to Firebase if available
+                if (typeof window.publishEventHistoryToDatabase === 'function') {
+                    window.publishEventHistoryToDatabase(eventEntry);
+                }
             }
+
             if (typeof window.publishTemperatureToDatabase === 'function') {
                 window.publishTemperatureToDatabase(roomId, sensorId, newTemp);
             }
@@ -1524,12 +1534,19 @@
         // ─────────────────────────────────────
         // RENDER LOG TABLE
         // ─────────────────────────────────────
+        function formatHistoryTime(entry) {
+            if (entry && entry.timestamp) {
+                return new Date(entry.timestamp).toLocaleTimeString(undefined, { hour12: false });
+            }
+            return entry && entry.time ? entry.time : '--:--:--';
+        }
+
         function renderTableLog() {
-            // Show last 100 entries
+            globalEventHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
             const entries = globalEventHistory.slice(0, 100);
             $telemetryLogBody.innerHTML = entries.map(item => `
                 <tr class="${item.isAlarm ? 'row-alarm' : ''}">
-                    <td>${item.time}</td>
+                    <td>${formatHistoryTime(item)}</td>
                     <td>${item.roomName || '--'}</td>
                     <td>${item.sensorName || '--'}</td>
                     <td><strong>${item.event}</strong></td>
@@ -1951,10 +1968,14 @@
 
         // ── PUBLISH HELPERS ──
         window.publishTemperatureToDatabase = async function(roomId, sensorId, value) {
+            const telemetryKey = `${roomId}_${sensorId}`;
+            const numericValue = Number(value);
+            const publishedAt = Date.now();
+            lastPublishedTelemetry.set(telemetryKey, { value: numericValue, publishedAt });
             try {
                 await set(ref(database, `rooms/${roomId}/sensors/${sensorId}/temperature`), Number(value).toFixed(
                     2));
-                await set(ref(database, `rooms/${roomId}/sensors/${sensorId}/lastUpdated`), Date.now());
+                await set(ref(database, `rooms/${roomId}/sensors/${sensorId}/lastUpdated`), publishedAt);
             } catch (e) {
                 console.error('FB temp write failed:', e);
             }
@@ -1975,7 +1996,12 @@
             const data = snapshot.val();
             if (data) {
                 const entries = Object.entries(data)
-                    .map(([id, value]) => ({ id, ...(value || {}) }))
+                    .map(([id, value]) => ({
+                        id,
+                        ...(value || {}),
+                        timestamp: value?.timestamp || Date.now(),
+                        time: value?.time || new Date(value?.timestamp || Date.now()).toLocaleTimeString(undefined, { hour12: false })
+                    }))
                     .filter(e => e && typeof e === 'object')
                     .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
                 // Merge into globalEventHistory (deduplicate by timestamp+roomId+sensorId)
@@ -2008,6 +2034,20 @@
                         Object.entries(roomData.sensors).forEach(([sensorId, sensorData]) => {
                             if (sensorData && sensorData.temperature !== undefined) {
                                 const numericTemp = parseFloat(sensorData.temperature);
+                                const telemetryKey = `${roomId}_${sensorId}`;
+                                const lastPublished = lastPublishedTelemetry.get(telemetryKey);
+                                const lastUpdated = Number(sensorData.lastUpdated || 0);
+
+                                if (lastPublished && lastUpdated && (lastPublished.publishedAt - lastUpdated) <= 1000) {
+                                    lastPublishedTelemetry.delete(telemetryKey);
+                                    return;
+                                }
+
+                                if (lastPublished && Math.abs(lastPublished.value - numericTemp) < 0.001) {
+                                    lastPublishedTelemetry.delete(telemetryKey);
+                                    return;
+                                }
+
                                 if (!isNaN(numericTemp)) {
                                     evaluateMetrics(roomId, sensorId, numericTemp);
                                 }
