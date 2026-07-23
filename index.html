@@ -1,0 +1,2065 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThermE.Y.E. - Appliances Thermal Monitoring System</title>
+    <style>
+        :root {
+            --bg-base: #090d16;
+            --bg-surface: #131c2e;
+            --text-main: #f1f5f9;
+            --text-muted: #64748b;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.15);
+            --success: #10b981;
+            --danger: #f43f5e;
+            --warning: #f59e0b;
+            --border: #1e293b;
+            --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
+            --loader-bg: #090d16;
+            --alarm-row-bg: #45121e;
+            --alarm-row-text: #fecdd3;
+            --accent-surface: rgba(59, 130, 246, 0.08);
+            --tab-active-bg: #1e3a5f;
+            --input-bg: #0f172a;
+            --overlay-bg: rgba(9, 13, 22, 0.92);
+        }
+
+        html[data-theme="light"] {
+            --bg-base: #f8fafc;
+            --bg-surface: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #94a3b8;
+            --border: #e2e8f0;
+            --card-shadow: 0 4px 18px -4px rgba(148, 163, 184, 0.12);
+            --loader-bg: #f8fafc;
+            --alarm-row-bg: #ffe4e6;
+            --alarm-row-text: #9f1239;
+            --accent-surface: rgba(59, 130, 246, 0.05);
+            --tab-active-bg: #dbeafe;
+            --input-bg: #f1f5f9;
+            --overlay-bg: rgba(248, 250, 252, 0.94);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            padding: 2rem 1.5rem;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* ── LOADING SCREEN ── */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--loader-bg);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+            opacity: 1;
+            transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
+        }
+        #loading-screen.fade-out {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .loader-container {
+            max-width: 500px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.25rem;
+        }
+        .loader-logo {
+            width: 140px;
+            height: 140px;
+            object-fit: contain;
+            margin-bottom: 0.5rem;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
+            animation: pulseLogo 2.5s infinite ease-in-out;
+        }
+        .loader-school {
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--primary);
+            max-width: 420px;
+            line-height: 1.4;
+        }
+        .loader-project {
+            font-size: 3.2rem;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #3b82f6, #60a5fa, #1d4ed8);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: -0.25rem;
+        }
+        .loader-tagline {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-bottom: 1.5rem;
+        }
+        .progress-bar-container {
+            width: 70%;
+            max-width: 240px;
+            height: 5px;
+            background-color: var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+        .progress-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(to right, var(--primary), #60a5fa);
+            border-radius: 10px;
+            animation: fillProgress 3s forwards cubic-bezier(0.1, 0.85, 0.25, 1);
+        }
+        .loader-developers {
+            border-top: 1px solid var(--border);
+            padding-top: 1.25rem;
+            width: 100%;
+        }
+        .dev-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+        }
+        .dev-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem 1.5rem;
+            justify-content: center;
+        }
+        .dev-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+        @keyframes pulseLogo {
+            0%,
+            100% {
+                transform: scale(1);
+                filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
+            }
+            50% {
+                transform: scale(1.04);
+                filter: drop-shadow(0 8px 24px var(--primary-glow));
+            }
+        }
+        @keyframes fillProgress {
+            0% {
+                width: 0%;
+            }
+            100% {
+                width: 100%;
+            }
+        }
+
+        /* ── AUTH SCREEN ── */
+        #auth-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-base);
+            z-index: 8888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            opacity: 1;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+        #auth-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .auth-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2.5rem 2rem;
+            max-width: 440px;
+            width: 100%;
+            box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.4);
+            text-align: center;
+        }
+        .auth-logo {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            margin-bottom: 0.75rem;
+        }
+        .auth-title {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.25rem;
+        }
+        .auth-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 1.75rem;
+        }
+        .auth-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1.5rem;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .auth-tab {
+            flex: 1;
+            padding: 0.75rem;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.9rem;
+            border: none;
+            background-color: var(--bg-base);
+            color: var(--text-muted);
+            letter-spacing: 0.03em;
+            transition: all 0.2s ease;
+        }
+        .auth-tab.active {
+            background-color: var(--primary);
+            color: #ffffff;
+        }
+        .auth-input {
+            width: 100%;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.9rem 1rem;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            margin-bottom: 0.85rem;
+            outline: none;
+            text-align: left;
+        }
+        .auth-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+        .password-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.85rem;
+        }
+        .password-row .auth-input {
+            margin-bottom: 0;
+        }
+        .password-toggle-btn,
+        .auth-link-btn {
+            border: 1px solid var(--border);
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            border-radius: 10px;
+            padding: 0.75rem 0.9rem;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }
+        .password-toggle-btn:hover,
+        .auth-link-btn:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+        .auth-links-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 0.25rem;
+        }
+        .auth-link-btn {
+            background: transparent;
+            border: none;
+            padding: 0;
+            color: var(--primary);
+            font-size: 0.82rem;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .auth-btn {
+            width: 100%;
+            padding: 0.9rem;
+            background-color: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            letter-spacing: 0.03em;
+            margin-top: 0.5rem;
+            transition: all 0.2s ease;
+        }
+        .auth-btn:hover {
+            filter: brightness(1.1);
+            box-shadow: 0 8px 25px var(--primary-glow);
+            transform: translateY(-1px);
+        }
+        .auth-btn:active {
+            transform: translateY(0);
+        }
+        .auth-error {
+            color: var(--danger);
+            font-size: 0.85rem;
+            margin-top: 0.75rem;
+            font-weight: 600;
+            min-height: 1.2em;
+        }
+        .auth-success {
+            color: var(--success);
+            font-size: 0.85rem;
+            margin-top: 0.75rem;
+            font-weight: 600;
+            min-height: 1.2em;
+        }
+
+        /* ── DASHBOARD (hidden until auth) ── */
+        #dashboard-container {
+            width: 100%;
+            max-width: 1300px;
+            display: none;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        #dashboard-container.visible {
+            display: flex;
+        }
+
+        /* ── HEADER ── */
+        .header-controls {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+        .header-title-group h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, var(--text-main), var(--text-muted));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .datetime-display {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .action-buttons {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+        .theme-btn {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.55rem 1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: var(--card-shadow);
+            white-space: nowrap;
+        }
+        .theme-btn:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 12px var(--primary-glow);
+            transform: translateY(-1px);
+        }
+        .theme-btn:active {
+            transform: translateY(0);
+        }
+        .signout-btn {
+            background-color: var(--danger);
+            border-color: var(--danger);
+            color: #fff;
+        }
+        .signout-btn:hover {
+            border-color: var(--danger);
+            box-shadow: 0 0 16px rgba(244, 63, 94, 0.3);
+        }
+
+        /* ── SENSOR CARDS GRID ── */
+        .sensor-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .sensor-mini-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.25rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: var(--card-shadow);
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .sensor-mini-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 18px var(--primary-glow);
+            transform: translateY(-2px);
+        }
+        .sensor-mini-card.selected {
+            border-color: var(--primary);
+            box-shadow: 0 0 22px var(--primary-glow);
+            outline: 2px solid var(--primary);
+            outline-offset: -2px;
+        }
+        .sensor-mini-card.alarm {
+            border-color: var(--danger) !important;
+            animation: pulseCard 1.5s infinite alternate;
+        }
+        @keyframes pulseCard {
+            0% {
+                box-shadow: 0 0 8px rgba(244, 63, 94, 0.2);
+            }
+            100% {
+                box-shadow: 0 0 22px rgba(244, 63, 94, 0.55);
+            }
+        }
+        .sensor-mini-name {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        .sensor-mini-temp {
+            font-size: 2rem;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            font-variant-numeric: tabular-nums;
+        }
+        .sensor-mini-status {
+            display: inline-block;
+            padding: 0.25rem 0.7rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-top: 0.4rem;
+        }
+        .mini-status-normal {
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--success);
+        }
+        .mini-status-warning {
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--warning);
+        }
+        .mini-status-danger {
+            background: rgba(244, 63, 94, 0.12);
+            color: var(--danger);
+        }
+
+        /* ── MAIN DASHBOARD GRID ── */
+        .dashboard {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+        @media (min-width: 768px) {
+            .dashboard {
+                grid-template-columns: 2fr 1fr;
+            }
+        }
+        .card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.75rem;
+            box-shadow: var(--card-shadow);
+        }
+        .hero-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+            min-height: 300px;
+            overflow: hidden;
+        }
+        .temp-display {
+            font-size: 6rem;
+            font-weight: 900;
+            line-height: 1;
+            margin: 0.75rem 0;
+            letter-spacing: -0.04em;
+            font-variant-numeric: tabular-nums;
+            transition: color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .status-safe {
+            color: var(--success);
+            text-shadow: 0 0 30px rgba(16, 185, 129, 0.1);
+        }
+        .status-warning {
+            color: var(--warning);
+            text-shadow: 0 0 30px rgba(245, 158, 11, 0.1);
+        }
+        .status-danger {
+            color: var(--danger);
+            text-shadow: 0 0 30px rgba(244, 63, 94, 0.15);
+        }
+        .state-badge {
+            display: inline-block;
+            padding: 0.4rem 1.1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+            transition: all 0.3s ease;
+        }
+        .state-badge.normal {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        .state-badge.high-heat {
+            background-color: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+        .state-badge.critical {
+            background-color: rgba(244, 63, 94, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            animation: pulseState 1.5s infinite alternate;
+        }
+        @keyframes pulseState {
+            0% {
+                transform: scale(1);
+            }
+            100% {
+                transform: scale(1.05);
+            }
+        }
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .status-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .status-row:first-of-type {
+            padding-top: 0.5rem;
+        }
+        .badge {
+            padding: 0.35rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+        .badge.online,
+        .badge.connected {
+            background-color: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+        .badge.offline,
+        .badge.disconnected {
+            background-color: rgba(244, 63, 94, 0.1);
+            border: 1px solid rgba(244, 63, 94, 0.2);
+            color: var(--danger);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem;
+            grid-column: 1 / -1;
+        }
+        .stat-card {
+            text-align: center;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem 1rem;
+            box-shadow: var(--card-shadow);
+            position: relative;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 3px;
+            border-radius: 0 0 4px 4px;
+        }
+        #highTemp-card::before {
+            background-color: var(--danger);
+        }
+        #lowTemp-card::before {
+            background-color: var(--primary);
+        }
+        #avgTemp-card::before {
+            background-color: var(--warning);
+        }
+        .stat-val {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-top: 0.6rem;
+            letter-spacing: -0.02em;
+            font-variant-numeric: tabular-nums;
+        }
+        label {
+            display: block;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+        }
+        input[type="number"],
+        input[type="text"] {
+            width: 100%;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.85rem 1rem;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            outline: none;
+        }
+        input[type="number"]:focus,
+        input[type="text"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+        .alert-banner {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(244, 63, 94, 0.05));
+            border: 1px solid var(--danger);
+            color: #ffffff;
+            padding: 1.2rem 1.5rem;
+            border-radius: 14px;
+            display: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            box-shadow: 0 10px 30px -10px rgba(244, 63, 94, 0.3);
+            animation: pulseAlert 2s infinite alternate;
+        }
+        @keyframes pulseAlert {
+            0% {
+                box-shadow: 0 4px 20px -5px rgba(244, 63, 94, 0.2);
+            }
+            100% {
+                box-shadow: 0 4px 25px 2px rgba(244, 63, 94, 0.4);
+            }
+        }
+
+        /* ── LOG TABLE ── */
+        .log-card {
+            grid-column: 1 / -1;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .log-header-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .log-action-btns {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .log-action-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.8rem;
+            letter-spacing: 0.03em;
+            border: 1px solid var(--border);
+            background-color: var(--bg-surface);
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s ease;
+        }
+        .log-action-btn:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+        .log-table-wrapper {
+            margin-top: 0.5rem;
+            max-height: 360px;
+            overflow-y: auto;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        .log-table th {
+            padding: 0.85rem 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border);
+            position: sticky;
+            top: 0;
+            background-color: var(--bg-surface);
+            z-index: 1;
+            white-space: nowrap;
+        }
+        .log-table td {
+            padding: 0.8rem 0.75rem;
+            font-weight: 500;
+            border-bottom: 1px solid var(--border);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+        .log-table tr.row-alarm {
+            background-color: var(--alarm-row-bg) !important;
+            color: var(--alarm-row-text) !important;
+        }
+        .log-table tr.row-alarm td {
+            color: var(--alarm-row-text) !important;
+            font-weight: 700;
+            border-bottom-color: rgba(244, 63, 94, 0.2);
+        }
+        .text-muted {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        h3 {
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            color: var(--text-main);
+            margin: 0;
+        }
+
+        /* ── PRINT STYLES ── */
+        @media print {
+            body {
+                background: #fff !important;
+                color: #000 !important;
+                padding: 0 !important;
+            }
+            #loading-screen,
+            #auth-screen,
+            .header-controls,
+            .sensor-cards-grid,
+            .dashboard .hero-card,
+            .dashboard .sidebar,
+            .stats-grid,
+            .alert-banner,
+            .log-action-btns,
+            .action-buttons,
+            #alertBanner {
+                display: none !important;
+            }
+            #dashboard-container {
+                display: block !important;
+                max-width: 100% !important;
+            }
+            .dashboard {
+                display: block !important;
+            }
+            .log-card {
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                background: #fff !important;
+            }
+            .log-table-wrapper {
+                max-height: none !important;
+                overflow: visible !important;
+                border: 1px solid #ccc !important;
+            }
+            .log-table th {
+                background: #f0f0f0 !important;
+                color: #000 !important;
+                border-bottom: 2px solid #000 !important;
+            }
+            .log-table td {
+                color: #000 !important;
+                border-bottom: 1px solid #ccc !important;
+            }
+            .log-table tr.row-alarm {
+                background-color: #fff0f0 !important;
+                color: #900 !important;
+            }
+            .log-table tr.row-alarm td {
+                color: #900 !important;
+            }
+            .log-card h3 {
+                color: #000 !important;
+                margin-bottom: 0.75rem !important;
+                font-size: 1.3rem !important;
+            }
+        }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 600px) {
+            .temp-display {
+                font-size: 3.5rem;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 0.5rem;
+            }
+            .stat-val {
+                font-size: 1.4rem;
+            }
+            .sensor-cards-grid {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══════════ LOADING SCREEN ═══════════ -->
+    <div id="loading-screen">
+        <div class="loader-container">
+            <img class="loader-logo" src="logo.png" alt="ThermE.Y.E. Logo" onerror="this.style.display='none'" />
+            <div class="loader-school">Fortunato F. Halili Agricultural National High School</div>
+            <div class="loader-project">ThermE.Y.E.</div>
+            <div class="loader-tagline">Appliances Thermal Monitoring System</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill"></div>
+            </div>
+            <div class="loader-developers">
+                <div class="dev-title">Developed By</div>
+                <div class="dev-grid-container">
+                    <div class="dev-name">Giero E. Delos Santos</div>
+                    <div class="dev-name">Gabriel P. Morallos</div>
+                    <div class="dev-name">Romelie Z. Ocuaman</div>
+                    <div class="dev-name">Jahyra Marie F. Salmeron</div>
+                    <div class="dev-name">Jericho Salas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ AUTH SCREEN ═══════════ -->
+    <div id="auth-screen">
+        <div class="auth-card">
+            <img class="auth-logo" src="logo.png" alt="Logo" onerror="this.style.display='none'" />
+            <div class="auth-title">Admin Access</div>
+            <div class="auth-subtitle">Sign in with your dedicated admin account</div>
+            <input type="email" class="auth-input" id="authEmail" placeholder="Admin email address" autocomplete="email" />
+            <div class="password-row">
+                <input type="password" class="auth-input" id="authPassword" placeholder="Admin password" autocomplete="current-password" />
+                <button type="button" class="password-toggle-btn" id="passwordToggleBtn">Show</button>
+            </div>
+            <div class="auth-links-row">
+                <button type="button" class="auth-link-btn" id="forgotPasswordBtn">Forgot password?</button>
+            </div>
+            <button class="auth-btn" id="authSubmitBtn">Sign In</button>
+            <div class="auth-error" id="authError"></div>
+            <div class="auth-success" id="authSuccess"></div>
+        </div>
+    </div>
+
+    <!-- ═══════════ MAIN DASHBOARD ═══════════ -->
+    <div id="dashboard-container">
+        <!-- Header -->
+        <div class="header-controls">
+            <div class="header-title-group">
+                <h2>Appliance Thermal Monitoring</h2>
+                <div class="datetime-display">
+                    📅 <span id="currentDate">--</span> | 🕒 <span id="currentTime">--</span>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button id="unitToggle" class="theme-btn" aria-label="Toggle Temperature Unit">
+                    <span>🌡️</span> <span id="unitText">Celsius (°C)</span>
+                </button>
+                <button id="themeToggle" class="theme-btn" aria-label="Toggle Theme">
+                    <span id="themeIcon">☀️</span> <span id="themeText">Light Mode</span>
+                </button>
+                <button id="signOutBtn" class="theme-btn signout-btn" aria-label="Sign Out">
+                    <span>🚪</span> <span>Sign Out</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Sensor Mini-Cards -->
+        <div class="sensor-cards-grid" id="sensorCardsGrid"></div>
+
+        <!-- Main Dashboard Grid -->
+        <div class="dashboard">
+            <!-- Alert Banner -->
+            <div id="alertBanner" class="alert-banner">
+                🚨 Warning: Appliance core temperature has breached the safe limit!
+            </div>
+
+            <!-- Hero / Live Readout -->
+            <div class="card hero-card">
+                <span class="text-muted" style="text-transform:uppercase;font-size:0.8rem;letter-spacing:0.08em;font-weight:700;">
+                    Active Sensor — <strong id="heroSensorLabel">--</strong>
+                </span>
+                <div id="currentTemp" class="temp-display">--.-°C</div>
+                <div id="thermalStateBadge" class="state-badge normal">NORMAL</div>
+                <span id="tempStatusText" class="text-muted" style="font-size:0.95rem;">Select a sensor</span>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="card">
+                    <h3 style="margin-bottom:1.25rem;font-size:1.15rem;">System Diagnostics</h3>
+                    <div class="status-row">
+                        <span class="text-muted">ESP32 Unit 1</span>
+                        <span id="deviceBadge1" class="badge offline">Offline</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="text-muted">Database</span>
+                        <span id="dbBadge" class="badge disconnected">Disconnected</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="text-muted">User</span>
+                        <span id="userBadge" class="badge connected">Authenticated</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3 style="margin-bottom:1.25rem;font-size:1.15rem;">Sensor Threshold</h3>
+                    <label for="limitInput" id="limitLabel">Safe Limit (°C)</label>
+                    <input type="number" id="limitInput" value="50.0" min="0" max="150" step="0.5" />
+                    <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:0.85rem;">
+                        <div>
+                            <label for="esp32HostInput1" style="margin-bottom:0.5rem;">ESP32 Host / IP</label>
+                            <input type="text" id="esp32HostInput1" class="esp32-host-input" placeholder="192.168.1.50" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card" id="highTemp-card">
+                    <span class="text-muted" style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;font-weight:700;">Highest</span>
+                    <div id="highTemp" class="stat-val">--.-°C</div>
+                </div>
+                <div class="stat-card" id="lowTemp-card">
+                    <span class="text-muted" style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;font-weight:700;">Lowest</span>
+                    <div id="lowTemp" class="stat-val">--.-°C</div>
+                </div>
+                <div class="stat-card" id="avgTemp-card">
+                    <span class="text-muted" style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;font-weight:700;">Average</span>
+                    <div id="avgTemp" class="stat-val">--.-°C</div>
+                </div>
+            </div>
+
+            <!-- Log Table -->
+            <div class="card log-card" id="logCard">
+                <div class="log-header-row">
+                    <h3 style="font-size:1.15rem;">History Event Log</h3>
+                    <div class="log-action-btns">
+                        <button class="log-action-btn" id="printLogBtn" title="Print log">🖨️ Print</button>
+                        <button class="log-action-btn" id="exportCsvBtn" title="Export as CSV">📥 Export CSV</button>
+                        <button class="log-action-btn" id="clearLogBtn" title="Clear local log">🗑️ Clear</button>
+                    </div>
+                </div>
+                <div class="log-table-wrapper">
+                    <table class="log-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Room</th>
+                                <th>Sensor</th>
+                                <th>Event</th>
+                                <th>Peak</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="telemetryLogBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ─────────────────────────────────────
+        // GLOBAL STATE
+        // ─────────────────────────────────────
+        const DEFAULT_ROOMS = [
+            { id: 'room1', name: 'Room-1', sensors: [
+                    { id: 'sensor1', name: 'ELECTRIC FAN LEFT' },
+                    { id: 'sensor2', name: 'ELECTRIC FAN RIGHT' },
+                    { id: 'sensor3', name: 'ELECTRIC FAN CENTER' },
+                    { id: 'sensor4', name: 'ELECTRIC FAN BACK' },
+                    { id: 'sensor5', name: 'TV' },
+                    { id: 'sensor6', name: 'LED BULB' }
+                ]}
+        ];
+
+        // Per-sensor data: key = "roomId_sensorId"
+        const sensorsData = {};
+        const globalEventHistory = []; // unified log
+        let activeRoomId = DEFAULT_ROOMS[0].id;
+        let activeSensorId = DEFAULT_ROOMS[0].sensors[0].id;
+        let isCelsius = true;
+        let esp32Sockets = [];
+        let esp32Connections = [false];
+        let monitoringEnabled = false;
+        const lastPublishedTelemetry = new Map();
+        window.ignoreInitialFirebaseTemp = true; // skip first FB snapshot
+
+        // ─────────────────────────────────────
+        // INIT SENSOR DATA STRUCTURES
+        // ─────────────────────────────────────
+        // Creates the per-appliance state object for every default sensor so the dashboard
+        // can keep track of temperature history, safe threshold, and status for each device.
+        function initSensorsData() {
+            DEFAULT_ROOMS.forEach(room => {
+                room.sensors.forEach(sensor => {
+                    const key = `${room.id}_${sensor.id}`;
+                    if (!sensorsData[key]) {
+                        sensorsData[key] = {
+                            roomId: room.id,
+                            roomName: room.name,
+                            sensorId: sensor.id,
+                            sensorName: sensor.name,
+                            dataLog: [],
+                            safeLimit: 50.0,
+                            currentTemp: null,
+                            status: 'NORMAL' // NORMAL | HIGH_HEAT | CRITICAL
+                        };
+                    }
+                });
+            });
+        }
+        initSensorsData();
+
+        // Returns the active appliance's current state object for the selected room/sensor pair.
+        function getActiveSensorData() {
+            const key = `${activeRoomId}_${activeSensorId}`;
+            return sensorsData[key] || null;
+        }
+
+        // Builds the lookup key used to retrieve the active sensor's state from sensorsData.
+        function getActiveKey() {
+            return `${activeRoomId}_${activeSensorId}`;
+        }
+
+        // ─────────────────────────────────────
+        // DOM REFS
+        // ─────────────────────────────────────
+        const $currentTemp = document.getElementById('currentTemp');
+        const $highTemp = document.getElementById('highTemp');
+        const $lowTemp = document.getElementById('lowTemp');
+        const $avgTemp = document.getElementById('avgTemp');
+        const $alertBanner = document.getElementById('alertBanner');
+        const $tempStatusText = document.getElementById('tempStatusText');
+        const $thermalStateBadge = document.getElementById('thermalStateBadge');
+        const $heroSensorLabel = document.getElementById('heroSensorLabel');
+        const $deviceBadge = document.getElementById('deviceBadge');
+        const $dbBadge = document.getElementById('dbBadge');
+        const $userBadge = document.getElementById('userBadge');
+        const $limitInput = document.getElementById('limitInput');
+        const $limitLabel = document.getElementById('limitLabel');
+        const $telemetryLogBody = document.getElementById('telemetryLogBody');
+        const $esp32HostInputs = [
+            document.getElementById('esp32HostInput1')
+        ];
+        const $deviceBadges = [
+            document.getElementById('deviceBadge1')
+        ];
+        const $sensorCardsGrid = document.getElementById('sensorCardsGrid');
+        const $authScreen = document.getElementById('auth-screen');
+        const $dashboardContainer = document.getElementById('dashboard-container');
+        const $authError = document.getElementById('authError');
+        const $authSuccess = document.getElementById('authSuccess');
+        const $authSubmitBtn = document.getElementById('authSubmitBtn');
+        const $authEmail = document.getElementById('authEmail');
+        const $authPassword = document.getElementById('authPassword');
+        const $tabSignIn = document.getElementById('tabSignIn');
+
+        window.authMode = 'signin';
+
+        // ─────────────────────────────────────
+        // DATE / TIME
+        // ─────────────────────────────────────
+        // Keeps the header clock synchronized with the user's local system time.
+        function updateDateTime() {
+            const now = new Date();
+            const dateOpts = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+            const timeOpts = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+            document.getElementById('currentDate').innerText = now.toLocaleDateString(undefined, dateOpts);
+            document.getElementById('currentTime').innerText = now.toLocaleTimeString(undefined, timeOpts);
+        }
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+
+        // ─────────────────────────────────────
+        // TEMP FORMATTING
+        // ─────────────────────────────────────
+        // Converts the stored Celsius temperature into the currently selected display unit.
+        function formatTemp(tempInC) {
+            if (tempInC === null || tempInC === undefined || isNaN(tempInC)) return '--.-°C';
+            if (isCelsius) return `${tempInC.toFixed(1)}°C`;
+            const tempInF = (tempInC * 9 / 5) + 32;
+            return `${tempInF.toFixed(1)}°F`;
+        }
+
+        // Converts a displayed Fahrenheit value back into Celsius for internal threshold logic.
+        function toCelsius(val) {
+            if (isCelsius) return val;
+            return (val - 32) * 5 / 9;
+        }
+
+        // Converts an internal Celsius value into the current UI unit for the limit input.
+        function fromCelsius(val) {
+            if (isCelsius) return val;
+            return (val * 9 / 5) + 32;
+        }
+
+        // ─────────────────────────────────────
+// AUDIO ALARM (Continuous Aesthetic Pulse)
+// ─────────────────────────────────────
+let audioCtx = null;
+let sirenNodes = null;
+let isAuthenticated = false;
+let lastSirenStart = 0;
+
+function startSiren() {
+    if (!isAuthenticated) return;
+    if (sirenNodes) return; // Already alarming
+
+    const now = Date.now();
+    if (now - lastSirenStart < 2000) return;
+    lastSirenStart = now;
+
+    try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const t = audioCtx.currentTime;
+
+        // 1. Master Output & Smooth Entry
+        const mainGain = audioCtx.createGain();
+        mainGain.gain.setValueAtTime(0.0001, t);
+        mainGain.gain.linearRampToValueAtTime(0.12, t + 0.5); // Warm volume ceiling
+
+        // 2. Lowpass Filter for soft, non-piercing tone
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1200, t);
+
+        // 3. Dual Oscillators for a pleasant 2-note harmonic (E5 + G#5)
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        
+        osc1.type = 'sine';
+        osc2.type = 'triangle'; // Adds warmth & clarity
+
+        osc1.frequency.setValueAtTime(659.25, t); // Note 1: E5
+        osc2.frequency.setValueAtTime(830.61, t); // Note 2: G#5
+
+        // 4. Alarm Tremolo / Pulse Gain (creates the rhythmic alert)
+        const pulseGain = audioCtx.createGain();
+        
+        // Pulse LFO: 1.8 Hz pulsing rate (gentle alarm pulse)
+        const lfo = audioCtx.createOscillator();
+        lfo.type = 'sine';
+        lfo.frequency.setValueAtTime(1.8, t);
+
+        // Depth control for pulse
+        const lfoDepth = audioCtx.createGain();
+        lfoDepth.gain.setValueAtTime(0.5, t); // Depth of pulse modulation
+
+        // Connect Pulse Modulation
+        lfo.connect(lfoDepth);
+        lfoDepth.connect(pulseGain.gain);
+        
+        // Base gain baseline for smooth pulse dips
+        pulseGain.gain.setValueAtTime(0.5, t);
+
+        // Connect Routing: Oscs -> Filter -> Pulse Gain -> Main Gain -> Speaker
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(pulseGain);
+        pulseGain.connect(mainGain);
+        mainGain.connect(audioCtx.destination);
+
+        // Start active continuous generators
+        osc1.start(t);
+        osc2.start(t);
+        lfo.start(t);
+
+        sirenNodes = { oscillators: [osc1, osc2], lfo, mainGain };
+    } catch (e) { 
+        console.error('Alarm audio init error:', e); 
+    }
+}
+
+function stopSiren() {
+    if (sirenNodes) {
+        try {
+            const t = audioCtx.currentTime;
+            
+            // Smooth 0.3s fade-out (prevents sudden pop sound when turning off)
+            sirenNodes.mainGain.gain.cancelScheduledValues(t);
+            sirenNodes.mainGain.gain.linearRampToValueAtTime(0.0001, t + 0.3);
+
+            setTimeout(() => {
+                sirenNodes.oscillators.forEach(osc => osc.stop());
+                sirenNodes.lfo.stop();
+                sirenNodes = null;
+            }, 300);
+        } catch (e) {
+            sirenNodes = null;
+        }
+    }
+}
+
+// User-interaction listener to unblock web audio autoplays
+document.body.addEventListener('click', () => {
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+});
+
+
+        // ─────────────────────────────────────
+        // RENDER SENSOR CARDS
+        // ─────────────────────────────────────
+        // Draws the appliance mini-cards for the active room and marks the selected sensor visually.
+        function renderSensorCards() {
+            const room = DEFAULT_ROOMS.find(r => r.id === activeRoomId);
+            if (!room) { $sensorCardsGrid.innerHTML = ''; return; }
+
+            $sensorCardsGrid.innerHTML = room.sensors.map(sensor => {
+                const key = `${room.id}_${sensor.id}`;
+                const sd = sensorsData[key];
+                const temp = sd ? sd.currentTemp : null;
+                const status = sd ? sd.status : 'NORMAL';
+                const isSelected = (sensor.id === activeSensorId);
+                let statusClass = 'mini-status-normal';
+                if (status === 'CRITICAL') statusClass = 'mini-status-danger';
+                else if (status === 'HIGH_HEAT') statusClass = 'mini-status-warning';
+                const alarmClass = (status === 'CRITICAL') ? ' alarm' : '';
+
+                return `<div class="sensor-mini-card${isSelected ? ' selected' : ''}${alarmClass}"
+                    data-sensor="${sensor.id}" data-room="${room.id}">
+                    <div class="sensor-mini-name">${sensor.name}</div>
+                    <div class="sensor-mini-temp" style="color:${status==='CRITICAL'?'var(--danger)':status==='HIGH_HEAT'?'var(--warning)':'var(--success)'}">
+                      ${formatTemp(temp)}
+                    </div>
+                    <span class="sensor-mini-status ${statusClass}">${status.replace('_',' ')}</span>
+                  </div>`;
+            }).join('');
+
+            // Click handlers
+            $sensorCardsGrid.querySelectorAll('.sensor-mini-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const sensorId = card.getAttribute('data-sensor');
+                    const roomId = card.getAttribute('data-room');
+                    activeRoomId = roomId;
+                    activeSensorId = sensorId;
+                    renderSensorCards();
+                    refreshHeroDisplay();
+                    updateLimitInputForActiveSensor();
+                });
+            });
+        }
+
+        // Keeps the safe-limit input synchronized with the currently selected appliance's threshold.
+        function updateLimitInputForActiveSensor() {
+            const sd = getActiveSensorData();
+            if (sd) {
+                $limitInput.value = fromCelsius(sd.safeLimit).toFixed(1);
+            }
+        }
+
+        // ─────────────────────────────────────
+        // REFRESH HERO + STATS
+        // ─────────────────────────────────────
+        // Updates the primary live readout, status badge, alert banner, and summary metrics for the active sensor.
+        function refreshHeroDisplay() {
+            const sd = getActiveSensorData();
+            if (!sd || sd.currentTemp === null) {
+                $currentTemp.innerText = '--.-°C';
+                $currentTemp.className = 'temp-display';
+                $highTemp.innerText = '--.-°C';
+                $lowTemp.innerText = '--.-°C';
+                $avgTemp.innerText = '--.-°C';
+                $thermalStateBadge.className = 'state-badge normal';
+                $thermalStateBadge.innerText = 'NORMAL';
+                $tempStatusText.innerText = 'Waiting for data...';
+                $tempStatusText.className = 'text-muted';
+                $heroSensorLabel.innerText = sd ? `${sd.roomName} › ${sd.sensorName}` : '--';
+                $alertBanner.style.display = 'none';
+                stopSiren();
+                return;
+            }
+
+            const dataLog = sd.dataLog;
+            const highest = dataLog.length ? Math.max(...dataLog) : sd.currentTemp;
+            const lowest = dataLog.length ? Math.min(...dataLog) : sd.currentTemp;
+            const average = dataLog.length ? dataLog.reduce((a, b) => a + b, 0) / dataLog.length : sd.currentTemp;
+
+            $currentTemp.innerText = formatTemp(sd.currentTemp);
+            $highTemp.innerText = formatTemp(highest);
+            $lowTemp.innerText = formatTemp(lowest);
+            $avgTemp.innerText = formatTemp(average);
+            $heroSensorLabel.innerText = `${sd.roomName} › ${sd.sensorName}`;
+
+            $currentTemp.className = 'temp-display';
+            $tempStatusText.className = 'text-muted';
+            $thermalStateBadge.className = 'state-badge';
+            $alertBanner.style.display = 'none';
+            stopSiren();
+
+            if (sd.status === 'CRITICAL') {
+                $currentTemp.classList.add('status-danger');
+                $alertBanner.style.display = 'block';
+                $alertBanner.innerHTML = `🚨 Warning: <strong>${sd.roomName} › ${sd.sensorName}</strong> has breached the safe limit (${formatTemp(sd.safeLimit)})!`;
+                $tempStatusText.innerText = 'Appliance Temperature Critical';
+                $tempStatusText.classList.add('status-danger');
+                $thermalStateBadge.innerText = 'CRITICAL BREACH';
+                $thermalStateBadge.classList.add('critical');
+                startSiren();
+            } else if (sd.status === 'HIGH_HEAT') {
+                $currentTemp.classList.add('status-warning');
+                $tempStatusText.innerText = 'Approaching Limit Alert';
+                $tempStatusText.classList.add('status-warning');
+                $thermalStateBadge.innerText = 'HIGH HEAT';
+                $thermalStateBadge.classList.add('high-heat');
+                stopSiren();
+            } else {
+                $currentTemp.classList.add('status-safe');
+                $tempStatusText.innerText = 'Appliance Operational — Stable';
+                $tempStatusText.classList.add('status-safe');
+                $thermalStateBadge.innerText = 'NORMAL';
+                $thermalStateBadge.classList.add('normal');
+                stopSiren();
+            }
+
+            // Update sensor mini-cards
+            renderSensorCards();
+            renderTableLog();
+        }
+
+        // ─────────────────────────────────────
+        // EVALUATE METRICS (called on new temp)
+        // ─────────────────────────────────────
+        // Processes a temperature sample, updates the appliance status, and appends a new event to the history log.
+        function evaluateMetrics(roomId, sensorId, newTemp) {
+            if (!isAuthenticated || !monitoringEnabled) return;
+            const key = `${roomId}_${sensorId}`;
+            let sd = sensorsData[key];
+            if (!sd) {
+                // Auto-create if unknown sensor
+                const room = DEFAULT_ROOMS.find(r => r.id === roomId) || { id: roomId, name: roomId,
+                    sensors: [] };
+                const sensor = { id: sensorId, name: sensorId };
+                sensorsData[key] = {
+                    roomId: roomId,
+                    roomName: room.name,
+                    sensorId: sensorId,
+                    sensorName: sensor.name,
+                    dataLog: [],
+                    safeLimit: 50.0,
+                    currentTemp: null,
+                    status: 'NORMAL'
+                };
+                sd = sensorsData[key];
+            }
+
+            const previousTemp = sd.currentTemp;
+            const previousStatus = sd.status;
+            sd.dataLog.push(newTemp);
+            sd.currentTemp = newTemp;
+
+            // Determine status
+            if (newTemp >= sd.safeLimit) {
+                sd.status = 'CRITICAL';
+            } else if (newTemp >= sd.safeLimit - 2.0) {
+                sd.status = 'HIGH_HEAT';
+            } else {
+                sd.status = 'NORMAL';
+            }
+
+            const tempChanged = previousTemp === null || Math.abs(previousTemp - newTemp) > 0.001;
+            const statusChanged = previousStatus !== sd.status;
+            const shouldLogEvent = tempChanged || statusChanged;
+
+            if (shouldLogEvent) {
+                // Log to global event history
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString(undefined, { hour12: true });
+                const eventEntry = {
+                    timestamp: Date.now(),
+                    time: timeStr,
+                    roomId: sd.roomId,
+                    roomName: sd.roomName,
+                    sensorId: sd.sensorId,
+                    sensorName: sd.sensorName,
+                    event: sd.status === 'CRITICAL' ? 'ALARM' : 'DATA',
+                    temp: newTemp,
+                    status: sd.status === 'CRITICAL' ? 'ALARM DETECTED' : sd.status === 'HIGH_HEAT' ? 'HIGH HEAT' :
+                        'NORMAL',
+                    isAlarm: sd.status === 'CRITICAL'
+                };
+                globalEventHistory.unshift(eventEntry);
+
+                // Keep log manageable
+                if (globalEventHistory.length > 500) globalEventHistory.length = 500;
+
+                // Publish to Firebase if available
+                if (typeof window.publishEventHistoryToDatabase === 'function') {
+                    window.publishEventHistoryToDatabase(eventEntry);
+                }
+            }
+
+            if (typeof window.publishTemperatureToDatabase === 'function') {
+                window.publishTemperatureToDatabase(roomId, sensorId, newTemp);
+            }
+
+            // Refresh UI if this is the active sensor
+            if (roomId === activeRoomId && sensorId === activeSensorId) {
+                refreshHeroDisplay();
+            } else {
+                // Still refresh cards for alarm indicators
+                renderSensorCards();
+                renderTableLog();
+            }
+        }
+
+        // ─────────────────────────────────────
+        // RENDER LOG TABLE
+        // ─────────────────────────────────────
+        // Converts the stored log timestamp into a readable time string for the history table.
+        function formatHistoryTime(entry) {
+            if (entry && entry.timestamp) {
+                return new Date(entry.timestamp).toLocaleTimeString(undefined, { hour12: true });
+            }
+            return entry && entry.time ? entry.time : '--:--:--';
+        }
+
+        // Renders the most recent event history rows in descending timestamp order.
+        function renderTableLog() {
+            globalEventHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            const entries = globalEventHistory.slice(0, 100);
+            $telemetryLogBody.innerHTML = entries.map(item => `
+                <tr class="${item.isAlarm ? 'row-alarm' : ''}">
+                    <td>${formatHistoryTime(item)}</td>
+                    <td>${item.roomName || '--'}</td>
+                    <td>${item.sensorName || '--'}</td>
+                    <td><strong>${item.event}</strong></td>
+                    <td>${formatTemp(item.temp)}</td>
+                    <td>${item.status}</td>
+                </tr>
+            `).join('');
+        }
+
+        // ─────────────────────────────────────
+        // PRINT & EXPORT
+        // ─────────────────────────────────────
+        document.getElementById('printLogBtn').addEventListener('click', () => {
+            window.print();
+        });
+
+        document.getElementById('exportCsvBtn').addEventListener('click', () => {
+            const entries = globalEventHistory.slice(0, 200);
+            let csv = 'Time,Room,Sensor,Event,Temperature,Status\n';
+            entries.forEach(item => {
+                const tempVal = isCelsius ? item.temp.toFixed(1) : ((item.temp * 9 / 5) + 32).toFixed(1);
+                const unit = isCelsius ? 'C' : 'F';
+                csv +=
+                    `"${item.time}","${item.roomName||''}","${item.sensorName||''}","${item.event}","${tempVal}°${unit}","${item.status}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `ThermEYE_Log_${new Date().toISOString().slice(0,10)}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+        });
+
+        document.getElementById('clearLogBtn').addEventListener('click', () => {
+            if (confirm('Clear all local event log entries? (Firebase data remains intact)')) {
+                globalEventHistory.length = 0;
+                renderTableLog();
+            }
+        });
+
+        // ─────────────────────────────────────
+        // SAFE LIMIT INPUT
+        // ─────────────────────────────────────
+        $limitInput.addEventListener('input', () => {
+    const val = parseFloat($limitInput.value);
+    if (!isNaN(val)) {
+        const celsiusVal = toCelsius(val);
+        const sd = getActiveSensorData();
+        if (sd) {
+            sd.safeLimit = celsiusVal;
+
+            // --- ADD THIS CODE BELOW TO TRANSMIT THRESHOLD TO ESP32 ---
+            esp32Sockets.forEach(socket => {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({ safeLimit: celsiusVal }));
+                }
+            });
+            // ---------------------------------------------------------
+
+            if (sd.currentTemp !== null) {
+                if (sd.currentTemp >= sd.safeLimit) sd.status = 'CRITICAL';
+                else if (sd.currentTemp >= sd.safeLimit - 2.0) sd.status = 'HIGH_HEAT';
+                else sd.status = 'NORMAL';
+                refreshHeroDisplay();
+            }
+        }
+    }
+});
+
+        // ─────────────────────────────────────
+        // UNIT TOGGLE
+        // ─────────────────────────────────────
+        document.getElementById('unitToggle').addEventListener('click', () => {
+            isCelsius = !isCelsius;
+            document.getElementById('unitText').innerText = isCelsius ? 'Celsius (°C)' : 'Fahrenheit (°F)';
+            $limitLabel.innerText = isCelsius ? 'Safe Limit (°C)' : 'Safe Limit (°F)';
+            updateLimitInputForActiveSensor();
+            refreshHeroDisplay();
+            renderTableLog();
+            renderSensorCards();
+        });
+
+        // ─────────────────────────────────────
+        // THEME TOGGLE
+        // ─────────────────────────────────────
+        // Switches the page between light and dark color themes and saves the user choice.
+        function setTheme(theme) {
+            if (theme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                document.getElementById('themeIcon').innerText = '🌙';
+                document.getElementById('themeText').innerText = 'Dark Mode';
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                document.getElementById('themeIcon').innerText = '☀️';
+                document.getElementById('themeText').innerText = 'Light Mode';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme');
+            setTheme(current === 'light' ? 'dark' : 'light');
+        });
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') setTheme('light');
+        else setTheme('dark');
+        // Helper to send temperature unit selection to the ESP32
+function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
+    if (typeof esp32Sockets !== 'undefined' && Array.isArray(esp32Sockets)) {
+        esp32Sockets.forEach(socket => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ unit: unitType }));
+            }
+        });
+    }
+}
+        // ─────────────────────────────────────
+        // ESP32 WEBSOCKET
+        // ─────────────────────────────────────
+        // Updates the ESP32 connection badge label and styling based on the current device state.
+        function setDeviceBadge(index, text, cls) {
+            const badge = $deviceBadges[index];
+            if (!badge) return;
+            badge.innerText = text;
+            badge.className = cls;
+        }
+        // Helper to send temperature unit selection to the ESP32
+function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
+    if (typeof esp32Sockets !== 'undefined' && Array.isArray(esp32Sockets)) {
+        esp32Sockets.forEach(socket => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ unit: unitType }));
+            }
+        });
+    }
+}
+        // Opens a WebSocket connection to the configured ESP32 endpoint and handles live telemetry messages.
+        function connectToEsp32(index) {
+            if (!isAuthenticated || !monitoringEnabled) {
+                setDeviceBadge(index, 'Not Connected', 'badge offline');
+                return;
+            }
+
+            const host = ($esp32HostInputs[index].value || '').trim();
+
+            if (!host) {
+                esp32Connections[index] = false;
+                setDeviceBadge(index, 'Not Connected', 'badge offline');
+                if (esp32Sockets[index]) {
+                    try { esp32Sockets[index].close(); } catch (e) {}
+                    esp32Sockets[index] = null;
+                }
+                return;
+            }
+
+            const wsUrl = host.startsWith('ws://') || host.startsWith('wss://') ? host : `ws://${host}:81`;
+            if (esp32Sockets[index] && (esp32Sockets[index].readyState === WebSocket.OPEN || esp32Sockets[index].readyState === WebSocket.CONNECTING)) {
+                return;
+            }
+
+            esp32Connections[index] = false;
+            setDeviceBadge(index, 'Connecting...', 'badge offline');
+
+            try {
+                const socket = new WebSocket(wsUrl);
+                esp32Sockets[index] = socket;
+
+                socket.addEventListener('open', () => {
+                    esp32Connections[index] = true;
+                    setDeviceBadge(index, 'ESP32 Connected', 'badge online');
+
+                    const currentLimit = parseFloat($limitInput.value);
+                    if (!isNaN(currentLimit)) {
+                        socket.send(JSON.stringify({
+                            type: 'connected',
+                            safeLimit: toCelsius(currentLimit)
+                        }));
+                        socket.send(JSON.stringify({ type: 'requestTelemetry' }));
+                        console.log(`[ESP32 #${index + 1}] Connected and requested initial sync.`);
+                    }
+                });
+
+                socket.addEventListener('message', (event) => {
+                    try {
+                        const payload = JSON.parse(event.data);
+
+                        if (payload.safeLimit !== undefined) {
+                            const syncedLimit = parseFloat(payload.safeLimit);
+                            if (!isNaN(syncedLimit)) {
+                                const activeSensor = getActiveSensorData();
+                                if (activeSensor) {
+                                    activeSensor.safeLimit = syncedLimit;
+                                }
+                                $limitInput.value = fromCelsius(syncedLimit).toFixed(1);
+                                console.log(`[ESP32 #${index + 1}] Received synced threshold from ESP32: ${syncedLimit}°C`);
+                            }
+                        }
+
+                        if (payload.temperature !== undefined) {
+                            const numericTemp = parseFloat(payload.temperature);
+                            if (!isNaN(numericTemp)) {
+                                const rId = payload.roomId || activeRoomId;
+                                const sId = payload.sensorId || activeSensorId;
+                                evaluateMetrics(rId, sId, numericTemp);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Invalid ESP32 payload:', e);
+                    }
+                });
+
+                socket.addEventListener('close', () => {
+                    esp32Connections[index] = false;
+                    setDeviceBadge(index, 'ESP32 Offline', 'badge offline');
+                    if (esp32Sockets[index] === socket) esp32Sockets[index] = null;
+                });
+
+                socket.addEventListener('error', () => {
+                    esp32Connections[index] = false;
+                    setDeviceBadge(index, 'ESP32 Error', 'badge offline');
+                });
+            } catch (e) {
+                console.error('ESP32 connection error:', e);
+                setDeviceBadge(index, 'ESP32 Error', 'badge offline');
+            }
+        }
+
+        $esp32HostInputs.forEach((input, index) => {
+            input.addEventListener('change', () => {
+                localStorage.setItem(`esp32Host${index + 1}`, input.value.trim());
+                connectToEsp32(index);
+            });
+        });
+
+        $esp32HostInputs.forEach((input, index) => {
+            const savedHost = localStorage.getItem(`esp32Host${index + 1}`) || '';
+            if (savedHost) {
+                input.value = savedHost;
+                connectToEsp32(index);
+            } else {
+                setDeviceBadge(index, 'Not Connected', 'badge offline');
+            }
+        });
+
+        // ─────────────────────────────────────
+        // INITIAL UI RENDER
+        // ─────────────────────────────────────
+        renderSensorCards();
+        refreshHeroDisplay();
+        renderTableLog();
+        updateLimitInputForActiveSensor();
+
+        // ─────────────────────────────────────
+        // LOADING SCREEN
+        // ─────────────────────────────────────
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const ls = document.getElementById('loading-screen');
+                if (ls) ls.classList.add('fade-out');
+            }, 3000);
+        });
+
+        // ─────────────────────────────────────
+        // AUTH SCREEN LOGIC (before Firebase)
+        // ─────────────────────────────────────
+        const $passwordToggleBtn = document.getElementById('passwordToggleBtn');
+        const $forgotPasswordBtn = document.getElementById('forgotPasswordBtn');
+
+        $passwordToggleBtn.addEventListener('click', () => {
+            const isPassword = $authPassword.type === 'password';
+            $authPassword.type = isPassword ? 'text' : 'password';
+            $passwordToggleBtn.innerText = isPassword ? 'Hide' : 'Show';
+        });
+
+        $tabSignIn.addEventListener('click', () => {
+            window.authMode = 'signin';
+            $authSubmitBtn.innerText = 'Sign In';
+            $authError.innerText = '';
+            $authSuccess.innerText = '';
+        });
+
+        // Reveals the authenticated dashboard and enables monitoring after a valid admin sign-in.
+        function showDashboard() {
+            isAuthenticated = true;
+            monitoringEnabled = true;
+            renderSensorCards();
+            refreshHeroDisplay();
+            renderTableLog();
+            updateLimitInputForActiveSensor();
+            $authScreen.classList.add('hidden');
+            $dashboardContainer.classList.add('visible');
+            $esp32HostInputs.forEach((input, index) => {
+                const savedHost = localStorage.getItem(`esp32Host${index + 1}`) || '';
+                if (savedHost) {
+                    input.value = savedHost;
+                    connectToEsp32(index);
+                }
+            });
+        }
+
+        // Hides the dashboard and restores the admin authentication screen when the session is signed out.
+        function showAuthScreen() {
+            isAuthenticated = false;
+            monitoringEnabled = false;
+            $authScreen.classList.remove('hidden');
+            $dashboardContainer.classList.remove('visible');
+            stopSiren();
+        }
+
+        // Expose for Firebase auth module
+        window.showDashboard = showDashboard;
+        window.showAuthScreen = showAuthScreen;
+        window.setUserBadge = function(email) {
+            $userBadge.innerText = email || 'Authenticated';
+            $userBadge.className = 'badge connected';
+        };
+    </script>
+
+    <!-- ═══════════ FIREBASE MODULE ═══════════ -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+            sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCuq5d5FKDlahLEkzVCHLqrScNhNHl2iIs",
+            authDomain: "web-app-thermal-detection.firebaseapp.com",
+            databaseURL: "https://web-app-thermal-detection-default-rtdb.firebaseio.com",
+            projectId: "web-app-thermal-detection",
+            storageBucket: "web-app-thermal-detection.firebasestorage.app",
+            messagingSenderId: "231355651791",
+            appId: "1:231355651791:web:d394151424a257ddefc9ba",
+            measurementId: "G-LYHV1QBRSR"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        const auth = getAuth(app);
+
+        $forgotPasswordBtn.addEventListener('click', async () => {
+            const email = $authEmail.value.trim();
+            $authError.innerText = '';
+            $authSuccess.innerText = '';
+
+            if (!email) {
+                $authError.innerText = 'Please enter your email address first.';
+                return;
+            }
+
+            try {
+                await sendPasswordResetEmail(auth, email);
+                $authSuccess.innerText = 'Password reset email sent. Check your inbox.';
+            } catch (error) {
+                console.error('Forgot password error:', error);
+                let msg = error.message || 'Unable to send password reset email.';
+                if (error.code === 'auth/user-not-found') msg = 'No account found with this email.';
+                if (error.code === 'auth/invalid-email') msg = 'Invalid email address format.';
+                $authError.innerText = msg;
+            }
+        });
+
+        $authSubmitBtn.addEventListener('click', async () => {
+            const email = $authEmail.value.trim();
+            const password = $authPassword.value.trim();
+
+            $authError.innerText = '';
+            $authSuccess.innerText = '';
+
+            if (!email || !password) {
+                $authError.innerText = 'Please enter both admin email and password.';
+                return;
+            }
+            if (password.length < 6) {
+                $authError.innerText = 'Admin password must be at least 6 characters.';
+                return;
+            }
+
+            $authSubmitBtn.disabled = true;
+            $authSubmitBtn.innerText = 'Please wait...';
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                console.error('Auth error:', error);
+                let msg = error.message || 'Admin authentication failed.';
+                if (error.code === 'auth/user-not-found') msg = 'No admin account found with this email.';
+                if (error.code === 'auth/wrong-password') msg = 'Incorrect admin password. Please try again.';
+                if (error.code === 'auth/invalid-email') msg = 'Invalid admin email address format.';
+                $authError.innerText = msg;
+            } finally {
+                $authSubmitBtn.disabled = false;
+                $authSubmitBtn.innerText = 'Sign In';
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !$authScreen.classList.contains('hidden') && document.activeElement &&
+                (document.activeElement.id === 'authEmail' || document.activeElement.id === 'authPassword')) {
+                $authSubmitBtn.click();
+            }
+        });
+
+        // ── DB CONNECTION STATUS ──
+        const connectedRef = ref(database, ".info/connected");
+        onValue(connectedRef, (snap) => {
+            const dbBadgeEl = document.getElementById('dbBadge');
+            if (snap.val() === true) {
+                dbBadgeEl.innerText = "Connected";
+                dbBadgeEl.className = "badge connected";
+            } else {
+                dbBadgeEl.innerText = "Disconnected";
+                dbBadgeEl.className = "badge disconnected";
+            }
+        });
+
+        // ── PUBLISH HELPERS ──
+        // Publishes the latest temperature reading to Firebase for persistence and cross-client syncing.
+        window.publishTemperatureToDatabase = async function(roomId, sensorId, value) {
+            const telemetryKey = `${roomId}_${sensorId}`;
+            const numericValue = Number(value);
+            const publishedAt = Date.now();
+            lastPublishedTelemetry.set(telemetryKey, { value: numericValue, publishedAt });
+            try {
+                await set(ref(database, `rooms/${roomId}/sensors/${sensorId}/temperature`), Number(value).toFixed(
+                    2));
+                await set(ref(database, `rooms/${roomId}/sensors/${sensorId}/lastUpdated`), publishedAt);
+            } catch (e) {
+                console.error('FB temp write failed:', e);
+            }
+        };
+
+        // Saves a new event-record entry into Firebase to keep the history log synchronized across devices.
+        window.publishEventHistoryToDatabase = async function(eventEntry) {
+            try {
+                const eventId = `${Date.now()}-${eventEntry.roomId || 'room'}-${eventEntry.sensorId || 'sensor'}`;
+                await set(ref(database, `eventHistory/${eventId}`), eventEntry);
+            } catch (e) {
+                console.error('FB history write failed:', e);
+            }
+        };
+
+        // ── LISTEN TO EVENT HISTORY ──
+        const historyRef = ref(database, 'eventHistory');
+        onValue(historyRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const entries = Object.entries(data)
+                    .map(([id, value]) => ({
+                        id,
+                        ...(value || {}),
+                        timestamp: value?.timestamp || Date.now(),
+                        time: value?.time || new Date(value?.timestamp || Date.now()).toLocaleTimeString(undefined, { hour12: true })
+                    }))
+                    .filter(e => e && typeof e === 'object')
+                    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                // Merge into globalEventHistory (deduplicate by timestamp+roomId+sensorId)
+                const existingKeys = new Set(globalEventHistory.map(e =>
+                    `${e.timestamp}_${e.roomId}_${e.sensorId}`));
+                entries.forEach(entry => {
+                    const key = `${entry.timestamp}_${entry.roomId}_${entry.sensorId}`;
+                    if (!existingKeys.has(key)) {
+                        globalEventHistory.push(entry);
+                        existingKeys.add(key);
+                    }
+                });
+                globalEventHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                if (globalEventHistory.length > 500) globalEventHistory.length = 500;
+                renderTableLog();
+            }
+        });
+
+        // ── LISTEN TO ALL ROOM SENSORS ──
+        const roomsRef = ref(database, 'rooms');
+        onValue(roomsRef, (snapshot) => {
+            if (window.ignoreInitialFirebaseTemp) {
+                window.ignoreInitialFirebaseTemp = false;
+                // Still process if there's data, but don't let it overwrite everything
+            }
+            const data = snapshot.val();
+            if (data) {
+                Object.entries(data).forEach(([roomId, roomData]) => {
+                    if (roomData && roomData.sensors) {
+                        Object.entries(roomData.sensors).forEach(([sensorId, sensorData]) => {
+                            if (sensorData && sensorData.temperature !== undefined) {
+                                const numericTemp = parseFloat(sensorData.temperature);
+                                const telemetryKey = `${roomId}_${sensorId}`;
+                                const lastPublished = lastPublishedTelemetry.get(telemetryKey);
+                                const lastUpdated = Number(sensorData.lastUpdated || 0);
+
+                                if (lastPublished && lastUpdated && (lastPublished.publishedAt - lastUpdated) <= 1000) {
+                                    lastPublishedTelemetry.delete(telemetryKey);
+                                    return;
+                                }
+
+                                if (lastPublished && Math.abs(lastPublished.value - numericTemp) < 0.001) {
+                                    lastPublishedTelemetry.delete(telemetryKey);
+                                    return;
+                                }
+
+                                if (!isNaN(numericTemp)) {
+                                    evaluateMetrics(roomId, sensorId, numericTemp);
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+        });
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is signed in
+                window.showDashboard();
+                window.setUserBadge(user.displayName || user.email || 'Authenticated');
+                // Store email in localStorage for convenience
+                localStorage.setItem('authEmail', user.email);
+            } else {
+                // User is signed out
+                window.showAuthScreen();
+                localStorage.removeItem('authEmail');
+            }
+        });
+
+        // ── SIGN OUT ──
+        document.getElementById('signOutBtn').addEventListener('click', async () => {
+            try {
+                await signOut(auth);
+                stopSiren();
+                $authEmail.value = '';
+                $authPassword.value = '';
+                $authError.innerText = '';
+                $authSuccess.innerText = '';
+            } catch (e) {
+                console.error('Sign out error:', e);
+            }
+        });
+
+        // Initial state: show auth screen until Firebase confirms
+        window.showAuthScreen();
+    </script>
+</body>
+</html>
