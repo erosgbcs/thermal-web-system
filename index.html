@@ -1687,7 +1687,92 @@ function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
                 const socket = new WebSocket(wsUrl);
                 esp32Sockets[index] = socket;
 
-                
+                // WebSocket message handler
+socket.onmessage = function(event) {
+    try {
+        const payload = JSON.parse(event.data);
+        
+        // 1. Update the specific sensor card based on payload.sensorId
+        updateSensorCard(payload);
+        
+        // 2. Evaluate and update the global warning banner status
+        updateWarningBanner();
+    } catch (error) {
+        console.error("Error parsing WebSocket data:", error);
+    }
+};
+
+/**
+ * Updates an individual sensor card's UI elements and stores its breach state.
+ */
+function updateSensorCard(payload) {
+    // Locate the specific card using the sensorId (e.g., id="sensor-1", "sensor-2", etc.)
+    const card = document.getElementById(`sensor-${payload.sensorId}`);
+    if (!card) return;
+
+    // Update the temperature display
+    const tempElement = card.querySelector('.temperature-value');
+    if (tempElement) {
+        tempElement.textContent = `${payload.temperature.toFixed(1)}°C`;
+    }
+
+    // Reference to the status badge element
+    const statusBadge = card.querySelector('.status-badge');
+
+    // Apply styling and dataset flags based on the isBreached property
+    if (payload.isBreached === true) {
+        card.classList.add('border-danger', 'bg-danger-subtle');
+        card.classList.remove('border-success', 'bg-success-subtle');
+        
+        if (statusBadge) {
+            statusBadge.textContent = 'CRITICAL';
+            statusBadge.className = 'status-badge badge bg-danger text-white';
+        }
+        
+        // Tag element state for global checking
+        card.dataset.breached = 'true';
+    } else {
+        card.classList.add('border-success', 'bg-success-subtle');
+        card.classList.remove('border-danger', 'bg-danger-subtle');
+        
+        if (statusBadge) {
+            statusBadge.textContent = 'NORMAL';
+            statusBadge.className = 'status-badge badge bg-success text-white';
+        }
+        
+        // Tag element state for global checking
+        card.dataset.breached = 'false';
+    }
+}
+
+/**
+ * Checks all cards on the screen to determine if the warning banner should show or hide.
+ */
+function updateWarningBanner() {
+    const banner = document.getElementById('warning-banner');
+    if (!banner) return;
+
+    // Select all rendered sensor cards on the dashboard
+    const allCards = document.querySelectorAll('.sensor-card');
+    let hasAnyBreach = false;
+
+    // Logic Rule: Check if any card has an active breach state
+    allCards.forEach(card => {
+        if (card.dataset.breached === 'true') {
+            hasAnyBreach = true;
+        }
+    });
+
+    // Logic Rule: Display the alert banner if any sensor is breached; 
+    // hide it only when all sensors report isBreached == false.
+    if (hasAnyBreach)
+        banner.classList.remove('d-none');
+        banner.style.display = 'block';
+    } else {
+        banner.classList.add('d-none');
+        banner.style.display = 'none';
+    }
+}
 
                 socket.addEventListener('open', () => {
                     esp32Connections[index] = true;
