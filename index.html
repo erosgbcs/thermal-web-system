@@ -1687,6 +1687,8 @@ function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
                 const socket = new WebSocket(wsUrl);
                 esp32Sockets[index] = socket;
 
+                
+
                 socket.addEventListener('open', () => {
                     esp32Connections[index] = true;
                     setDeviceBadge(index, 'ESP32 Connected', 'badge online');
