@@ -1180,7 +1180,7 @@
         }
 
         // ─────────────────────────────────────
-// AUDIO AMBIENCE (Continuous Aesthetic Drone)
+// AUDIO ALARM (Continuous Aesthetic Pulse)
 // ─────────────────────────────────────
 let audioCtx = null;
 let sirenNodes = null;
@@ -1189,7 +1189,7 @@ let lastSirenStart = 0;
 
 function startSiren() {
     if (!isAuthenticated) return;
-    if (sirenNodes) return; // Already playing
+    if (sirenNodes) return; // Already alarming
 
     const now = Date.now();
     if (now - lastSirenStart < 2000) return;
@@ -1201,49 +1201,60 @@ function startSiren() {
 
         const t = audioCtx.currentTime;
 
-        // 1. Master Volume with smooth fade-in
+        // 1. Master Output & Smooth Entry
         const mainGain = audioCtx.createGain();
         mainGain.gain.setValueAtTime(0.0001, t);
-        mainGain.gain.exponentialRampToValueAtTime(0.05, t + 1.5); // Soft 1.5-second fade in
+        mainGain.gain.linearRampToValueAtTime(0.12, t + 0.5); // Warm volume ceiling
 
-        // 2. Warm Lowpass Filter
+        // 2. Lowpass Filter for soft, non-piercing tone
         const filter = audioCtx.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(450, t); // Cuts sharp high frequencies
+        filter.frequency.setValueAtTime(1200, t);
 
-        // 3. LFO (Creates a gentle, slow pulse / breathing motion)
+        // 3. Dual Oscillators for a pleasant 2-note harmonic (E5 + G#5)
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        
+        osc1.type = 'sine';
+        osc2.type = 'triangle'; // Adds warmth & clarity
+
+        osc1.frequency.setValueAtTime(659.25, t); // Note 1: E5
+        osc2.frequency.setValueAtTime(830.61, t); // Note 2: G#5
+
+        // 4. Alarm Tremolo / Pulse Gain (creates the rhythmic alert)
+        const pulseGain = audioCtx.createGain();
+        
+        // Pulse LFO: 1.8 Hz pulsing rate (gentle alarm pulse)
         const lfo = audioCtx.createOscillator();
-        const lfoGain = audioCtx.createGain();
-        lfo.frequency.setValueAtTime(0.3, t); // 0.3 Hz = slow pulse every ~3 seconds
-        lfoGain.gain.setValueAtTime(150, t);  // Pulse intensity
-        lfo.connect(filter.frequency);
-        lfo.start(t);
+        lfo.type = 'sine';
+        lfo.frequency.setValueAtTime(1.8, t);
 
-        // 4. Lush Ambient Chord Oscillators (Warm E Major 7th harmony)
-        const freqs = [164.81, 246.94, 329.63, 493.88]; // E3, B3, E4, B4
-        const oscs = [];
+        // Depth control for pulse
+        const lfoDepth = audioCtx.createGain();
+        lfoDepth.gain.setValueAtTime(0.5, t); // Depth of pulse modulation
 
-        freqs.forEach((freq, index) => {
-            const osc = audioCtx.createOscillator();
-            osc.type = 'sine'; // Smooth pure tone
-            
-            // Slight detune between layers gives a rich, analog width
-            osc.frequency.setValueAtTime(freq, t);
-            osc.detune.setValueAtTime((index % 2 === 0 ? 3 : -3), t);
-            
-            osc.connect(filter);
-            osc.start(t);
-            oscs.push(osc);
-        });
+        // Connect Pulse Modulation
+        lfo.connect(lfoDepth);
+        lfoDepth.connect(pulseGain.gain);
+        
+        // Base gain baseline for smooth pulse dips
+        pulseGain.gain.setValueAtTime(0.5, t);
 
-        // Routing: Oscillators -> Filter -> Master Gain -> Speakers
-        filter.connect(mainGain);
+        // Connect Routing: Oscs -> Filter -> Pulse Gain -> Main Gain -> Speaker
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(pulseGain);
+        pulseGain.connect(mainGain);
         mainGain.connect(audioCtx.destination);
 
-        // Store active node references so stopSiren can target them
-        sirenNodes = { oscillators: oscs, lfo, mainGain };
+        // Start active continuous generators
+        osc1.start(t);
+        osc2.start(t);
+        lfo.start(t);
+
+        sirenNodes = { oscillators: [osc1, osc2], lfo, mainGain };
     } catch (e) { 
-        console.error('Ambient audio init error:', e); 
+        console.error('Alarm audio init error:', e); 
     }
 }
 
@@ -1252,21 +1263,22 @@ function stopSiren() {
         try {
             const t = audioCtx.currentTime;
             
-            // Smooth 1-second fade out (no abrupt clicks or pops)
+            // Smooth 0.3s fade-out (prevents sudden pop sound when turning off)
             sirenNodes.mainGain.gain.cancelScheduledValues(t);
-            sirenNodes.mainGain.gain.exponentialRampToValueAtTime(0.0001, t + 1.0);
+            sirenNodes.mainGain.gain.linearRampToValueAtTime(0.0001, t + 0.3);
 
             setTimeout(() => {
                 sirenNodes.oscillators.forEach(osc => osc.stop());
                 sirenNodes.lfo.stop();
                 sirenNodes = null;
-            }, 1000);
+            }, 300);
         } catch (e) {
             sirenNodes = null;
         }
     }
 }
 
+// User-interaction listener to unblock web audio autoplays
 document.body.addEventListener('click', () => {
     if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
