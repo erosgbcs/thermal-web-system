@@ -1765,7 +1765,7 @@ function updateWarningBanner() {
 
     // Logic Rule: Display the alert banner if any sensor is breached; 
     // hide it only when all sensors report isBreached == false.
-    if (hasAnyBreach)
+    if (hasAnyBreach) {
         banner.classList.remove('d-none');
         banner.style.display = 'block';
     } else {
@@ -1774,7 +1774,7 @@ function updateWarningBanner() {
     }
 }
 
-                socket.addEventListener('open', () => {
+            socket.addEventListener('open', () => {
                     esp32Connections[index] = true;
                     setDeviceBadge(index, 'ESP32 Connected', 'badge online');
 
