@@ -1074,6 +1074,7 @@
         // Per-sensor data: key = "roomId_sensorId"
         const sensorsData = {};
         const globalEventHistory = []; // unified log
+        const lastDbWriteTime = new Map();
         let activeRoomId = DEFAULT_ROOMS[0].id;
         let activeSensorId = DEFAULT_ROOMS[0].sensors[0].id;
         let isCelsius = true;
@@ -1393,92 +1394,103 @@ document.body.addEventListener('click', () => {
             renderTableLog();
         }
 
-        // ─────────────────────────────────────
-        // EVALUATE METRICS (called on new temp)
-        // ─────────────────────────────────────
-        // Processes a temperature sample, updates the appliance status, and appends a new event to the history log.
-        function evaluateMetrics(roomId, sensorId, newTemp) {
-            if (!isAuthenticated || !monitoringEnabled) return;
-            const key = `${roomId}_${sensorId}`;
-            let sd = sensorsData[key];
-            if (!sd) {
-                // Auto-create if unknown sensor
-                const lastDbWriteTime = new Map();
-                const room = DEFAULT_ROOMS.find(r => r.id === roomId) || { id: roomId, name: roomId,
-                    sensors: [] };
-                const sensor = { id: sensorId, name: sensorId };
-                sensorsData[key] = {
-                    roomId: roomId,
-                    roomName: room.name,
-                    sensorId: sensorId,
-                    sensorName: sensor.name,
-                    dataLog: [],
-                    safeLimit: 50.0,
-                    currentTemp: null,
-                    status: 'NORMAL'
-                };
-                sd = sensorsData[key];
-            }
+       // ─────────────────────────────────────
+// EVALUATE METRICS (called on new temp)
+// ─────────────────────────────────────
+function evaluateMetrics(roomId, sensorId, newTemp) {
+    if (!isAuthenticated || !monitoringEnabled) return;
+    
+    const key = `${roomId}_${sensorId}`;
+    let sd = sensorsData[key];
+    
+    // Auto-create if unknown sensor
+    if (!sd) {
+        const room = DEFAULT_ROOMS.find(r => r.id === roomId) || { id: roomId, name: roomId, sensors: [] };
+        const sensor = { id: sensorId, name: sensorId };
+        sensorsData[key] = {
+            roomId: roomId,
+            roomName: room.name,
+            sensorId: sensorId,
+            sensorName: sensor.name,
+            dataLog: [],
+            safeLimit: 50.0,
+            currentTemp: null,
+            status: 'NORMAL'
+        };
+        sd = sensorsData[key];
+    }
 
-            const previousTemp = sd.currentTemp;
-            const previousStatus = sd.status;
-            sd.dataLog.push(newTemp);
-            sd.currentTemp = newTemp;
+    const previousStatus = sd.status;
+    
+    // Update arrays and current temp
+    sd.dataLog.push(newTemp);
+    sd.currentTemp = newTemp;
 
-            // Determine status
-            if (newTemp >= sd.safeLimit) {
-                sd.status = 'CRITICAL';
-            } else if (newTemp >= sd.safeLimit - 2.0) {
-                sd.status = 'HIGH_HEAT';
-            } else {
-                sd.status = 'NORMAL';
-            }
+    // Determine status
+    if (newTemp >= sd.safeLimit) {
+        sd.status = 'CRITICAL';
+    } else if (newTemp >= sd.safeLimit - 2.0) {
+        sd.status = 'HIGH_HEAT';
+    } else {
+        sd.status = 'NORMAL';
+    }
 
-            const tempChanged = previousTemp === null || Math.abs(previousTemp - newTemp) > 0.001;
-            const statusChanged = previousStatus !== sd.status;
-            const shouldLogEvent = tempChanged || statusChanged;
+    const statusChanged = previousStatus !== sd.status;
 
-            if (shouldLogEvent) {
-                // Log to global event history
-                const now = new Date();
-                const timeStr = now.toLocaleTimeString(undefined, { hour12: true });
-                const eventEntry = {
-                    timestamp: Date.now(),
-                    time: timeStr,
-                    roomId: sd.roomId,
-                    roomName: sd.roomName,
-                    sensorId: sd.sensorId,
-                    sensorName: sd.sensorName,
-                    event: sd.status === 'CRITICAL' ? 'ALARM' : 'DATA',
-                    temp: newTemp,
-                    status: sd.status === 'CRITICAL' ? 'ALARM DETECTED' : sd.status === 'HIGH_HEAT' ? 'HIGH HEAT' :
-                        'NORMAL',
-                    isAlarm: sd.status === 'CRITICAL'
-                };
-                globalEventHistory.unshift(eventEntry);
-
-                // Keep log manageable
-                if (globalEventHistory.length > 500) globalEventHistory.length = 500;
-
-                // Publish to Firebase if available
-                if (typeof window.publishEventHistoryToDatabase === 'function') {
-                    window.publishEventHistoryToDatabase(eventEntry);
-                }
-            }
-
-            if (typeof window.publishTemperatureToDatabase === 'function') {
-                window.publishTemperatureToDatabase(roomId, sensorId, newTemp);
-            }
-
-            // Refresh UI if this is the active sensor
-            if (roomId === activeRoomId && sensorId === activeSensorId) {
-                refreshHeroDisplay();
-            } else {
-                // Still refresh cards for alarm indicators
-                renderSensorCards();
-                renderTableLog();
-            }
+    // OPTIMIZATION: Log events ONLY when status changes (prevents DOM and Firebase spam)
+    if (statusChanged) {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString(undefined, { hour12: true });
+        
+        const eventEntry = {
+            timestamp: Date.now(),
+            time: timeStr,
+            roomId: sd.roomId,
+            roomName: sd.roomName,
+            sensorId: sd.sensorId,
+            sensorName: sd.sensorName,
+            event: sd.status === 'CRITICAL' ? 'ALARM' : 'STATUS_CHANGE',
+            temp: newTemp,
+            status: sd.status === 'CRITICAL' ? 'ALARM DETECTED' : sd.status === 'HIGH_HEAT' ? 'HIGH HEAT' : 'NORMAL',
+            isAlarm: sd.status === 'CRITICAL'
+        };
+        
+        globalEventHistory.unshift(eventEntry);
+        
+        // FAST UI UPDATE: Prepend instead of full re-render
+        if (typeof appendLogEntryToTable === 'function') {
+            appendLogEntryToTable(eventEntry);
         }
+
+        // Keep log manageable locally
+        if (globalEventHistory.length > 500) globalEventHistory.length = 500;
+
+        // Publish event history to Firebase
+        if (typeof window.publishEventHistoryToDatabase === 'function') {
+            window.publishEventHistoryToDatabase(eventEntry);
+        }
+    }
+
+    // THROTTLED FIREBASE WRITE: Max 1 update per 2000ms per sensor
+    const nowTime = Date.now();
+    const lastWrite = lastDbWriteTime.get(key) || 0;
+    if (statusChanged || (nowTime - lastWrite > 2000)) {
+        lastDbWriteTime.set(key, nowTime);
+        if (typeof window.publishTemperatureToDatabase === 'function') {
+            window.publishTemperatureToDatabase(roomId, sensorId, newTemp);
+        }
+    }
+
+    // Refresh UI if this is the active sensor
+    if (roomId === activeRoomId && sensorId === activeSensorId) {
+        refreshHeroDisplay();
+    } else {
+        // Fast UI update instead of destroying the DOM
+        if (typeof updateSensorCardUI === 'function') {
+            updateSensorCardUI(roomId, sensorId, newTemp, sd.status);
+        }
+    }
+}
 
         // ─────────────────────────────────────
         // RENDER LOG TABLE
