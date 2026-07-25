@@ -1672,9 +1672,11 @@ function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
             }
         });
     }
-    // ─────────────────────────────────────
-// CONNECTION WATCHDOG (Zero out if no data)
+} // <--- ADD THIS CLOSING BRACKET HERE!
+
 // ─────────────────────────────────────
+// CONNECTION WATCHDOG (Zero out if no data)
+// ──────────────────────────────────────
 let lastDataReceivedTime = Date.now();
 let watchdogInterval = null;
 
@@ -1708,7 +1710,7 @@ function startDataWatchdog() {
         }
     }, 5000);
 }
-}
+
         // Opens a WebSocket connection to the configured ESP32 endpoint and handles live telemetry messages.
         function connectToEsp32(index) {
             if (!isAuthenticated || !monitoringEnabled) {
