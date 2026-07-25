@@ -1403,6 +1403,7 @@ document.body.addEventListener('click', () => {
             let sd = sensorsData[key];
             if (!sd) {
                 // Auto-create if unknown sensor
+                const lastDbWriteTime = new Map();
                 const room = DEFAULT_ROOMS.find(r => r.id === roomId) || { id: roomId, name: roomId,
                     sensors: [] };
                 const sensor = { id: sensorId, name: sensorId };
@@ -1513,6 +1514,20 @@ function appendLogEntryToTable(item) {
     while ($telemetryLogBody.children.length > 100) {
         $telemetryLogBody.removeChild($telemetryLogBody.lastElementChild);
     }
+}   // FAST BULK RENDER: Used only for initial Firebase load or clearing logs
+function renderTableLog() {
+    if (!$telemetryLogBody) return;
+    $telemetryLogBody.innerHTML = globalEventHistory.slice(0, 100).map(item => {
+        const isAlarmClass = item.isAlarm ? ' class="row-alarm"' : '';
+        return `<tr${isAlarmClass}>
+            <td>${formatHistoryTime(item)}</td>
+            <td>${item.roomName || '--'}</td>
+            <td>${item.sensorName || '--'}</td>
+            <td><strong>${item.event}</strong></td>
+            <td>${formatTemp(item.temp)}</td>
+            <td>${item.status}</td>
+        </tr>`;
+    }).join('');
 }
 
         // ─────────────────────────────────────
@@ -1981,7 +1996,31 @@ function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
                 renderTableLog();
             }
         });
+function updateSensorCardUI(roomId, sensorId, temp, status) {
+    const card = document.querySelector(`.sensor-mini-card[data-sensor="${sensorId}"][data-room="${roomId}"]`);
+    if (!card) return;
 
+    const tempEl = card.querySelector('.sensor-mini-temp');
+    const statusEl = card.querySelector('.sensor-mini-status');
+
+    if (tempEl) {
+        tempEl.innerText = formatTemp(temp);
+        tempEl.style.color = status === 'CRITICAL' ? 'var(--danger)' : status === 'HIGH_HEAT' ? 'var(--warning)' : 'var(--success)';
+    }
+
+    if (statusEl) {
+        statusEl.className = `sensor-mini-status ${
+            status === 'CRITICAL' ? 'mini-status-danger' : status === 'HIGH_HEAT' ? 'mini-status-warning' : 'mini-status-normal'
+        }`;
+        statusEl.innerText = status.replace('_', ' ');
+    }
+
+    if (status === 'CRITICAL') {
+        card.classList.add('alarm');
+    } else {
+        card.classList.remove('alarm');
+    }
+}
         // ── LISTEN TO ALL ROOM SENSORS ──
         const roomsRef = ref(database, 'rooms');
         onValue(roomsRef, (snapshot) => {
