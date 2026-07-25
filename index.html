@@ -42,13 +42,17 @@
             --overlay-bg: rgba(248, 250, 252, 0.94);
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
-        }
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ADD SPECIFIC TRANSITIONS ONLY WHERE NEEDED */
+.theme-btn, .auth-tab, .auth-btn, .sensor-mini-card, .log-action-btn {
+    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+}
 
         body {
             background-color: var(--bg-base);
@@ -1487,20 +1491,29 @@ document.body.addEventListener('click', () => {
         }
 
         // Renders the most recent event history rows in descending timestamp order.
-        function renderTableLog() {
-            globalEventHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-            const entries = globalEventHistory.slice(0, 100);
-            $telemetryLogBody.innerHTML = entries.map(item => `
-                <tr class="${item.isAlarm ? 'row-alarm' : ''}">
-                    <td>${formatHistoryTime(item)}</td>
-                    <td>${item.roomName || '--'}</td>
-                    <td>${item.sensorName || '--'}</td>
-                    <td><strong>${item.event}</strong></td>
-                    <td>${formatTemp(item.temp)}</td>
-                    <td>${item.status}</td>
-                </tr>
-            `).join('');
-        }
+        // FAST: Prepend only the newly generated log entry
+function appendLogEntryToTable(item) {
+    if (!$telemetryLogBody) return;
+
+    const row = document.createElement('tr');
+    if (item.isAlarm) row.className = 'row-alarm';
+
+    row.innerHTML = `
+        <td>${formatHistoryTime(item)}</td>
+        <td>${item.roomName || '--'}</td>
+        <td>${item.sensorName || '--'}</td>
+        <td><strong>${item.event}</strong></td>
+        <td>${formatTemp(item.temp)}</td>
+        <td>${item.status}</td>
+    `;
+
+    $telemetryLogBody.prepend(row);
+
+    // Keep DOM clean by removing older rows beyond 100 entries
+    while ($telemetryLogBody.children.length > 100) {
+        $telemetryLogBody.removeChild($telemetryLogBody.lastElementChild);
+    }
+}
 
         // ─────────────────────────────────────
         // PRINT & EXPORT
