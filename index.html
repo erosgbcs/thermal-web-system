@@ -1672,6 +1672,42 @@ function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
             }
         });
     }
+    // ─────────────────────────────────────
+// CONNECTION WATCHDOG (Zero out if no data)
+// ─────────────────────────────────────
+let lastDataReceivedTime = Date.now();
+let watchdogInterval = null;
+
+function zeroOutSensorReadings() {
+    Object.keys(sensorsData).forEach(key => {
+        const sd = sensorsData[key];
+        // Only trigger if it isn't already zero
+        if (sd.currentTemp !== 0) {
+            sd.currentTemp = 0; 
+            sd.status = 'NORMAL'; // Clears any active alarms
+            
+            // Visually update the mini cards
+            if (typeof updateSensorCardUI === 'function') {
+                updateSensorCardUI(sd.roomId, sd.sensorId, 0, 'NORMAL');
+            }
+        }
+    });
+    // Update the main hero display
+    refreshHeroDisplay();
+}
+
+function startDataWatchdog() {
+    if (watchdogInterval) clearInterval(watchdogInterval);
+    lastDataReceivedTime = Date.now();
+    
+    // Check every 5 seconds
+    watchdogInterval = setInterval(() => {
+        // If 10 seconds pass with NO data, zero out readings
+        if (Date.now() - lastDataReceivedTime > 10000) { 
+            zeroOutSensorReadings();
+        }
+    }, 5000);
+}
 }
         // Opens a WebSocket connection to the configured ESP32 endpoint and handles live telemetry messages.
         function connectToEsp32(index) {
@@ -1720,6 +1756,7 @@ function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
                 });
 
                 socket.addEventListener('message', (event) => {
+                    lastDataReceivedTime = Date.now(); // 
                     try {
                         const payload = JSON.parse(event.data);
 
@@ -1752,6 +1789,7 @@ function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
                     esp32Connections[index] = false;
                     setDeviceBadge(index, 'ESP32 Offline', 'badge offline');
                     if (esp32Sockets[index] === socket) esp32Sockets[index] = null;
+                    zeroOutSensorReadings();
                 });
 
                 socket.addEventListener('error', () => {
@@ -1761,6 +1799,7 @@ function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
             } catch (e) {
                 console.error('ESP32 connection error:', e);
                 setDeviceBadge(index, 'ESP32 Error', 'badge offline');
+                zeroOutSensorReadings();
             }
         }
 
@@ -1835,6 +1874,7 @@ function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
                     connectToEsp32(index);
                 }
             });
+            startDataWatchdog();
         }
 
         // Hides the dashboard and restores the admin authentication screen when the session is signed out.
