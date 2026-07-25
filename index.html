@@ -1188,111 +1188,85 @@
             return (val * 9 / 5) + 32;
         }
 
-        // ─────────────────────────────────────
-// AUDIO ALARM (Continuous Aesthetic Pulse)
+ // ─────────────────────────────────────
+// AUDIO ALARM (MP3 File Playback)
 // ─────────────────────────────────────
-let audioCtx = null;
-let sirenNodes = null;
+// Ensure 'buzzer.mp3' is in the correct directory relative to this script/HTML file.
+const alarmAudio = new Audio('buzzer.mp3');
+alarmAudio.loop = true; // Keep the continuous looping behavior
+
+let isPlaying = false;
 let isAuthenticated = false;
 let lastSirenStart = 0;
+let fadeInterval = null;
 
 function startSiren() {
     if (!isAuthenticated) return;
-    if (sirenNodes) return; // Already alarming
+    if (isPlaying) return; // Already alarming
 
     const now = Date.now();
     if (now - lastSirenStart < 2000) return;
     lastSirenStart = now;
 
     try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-
-        const t = audioCtx.currentTime;
-
-        // 1. Master Output & Smooth Entry
-        const mainGain = audioCtx.createGain();
-        mainGain.gain.setValueAtTime(0.0001, t);
-        mainGain.gain.linearRampToValueAtTime(0.12, t + 0.5); // Warm volume ceiling
-
-        // 2. Lowpass Filter for soft, non-piercing tone
-        const filter = audioCtx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(1200, t);
-
-        // 3. Dual Oscillators for a pleasant 2-note harmonic (E5 + G#5)
-        const osc1 = audioCtx.createOscillator();
-        const osc2 = audioCtx.createOscillator();
+        // Clear any ongoing fade-outs to prevent volume conflicts
+        if (fadeInterval) clearInterval(fadeInterval);
         
-        osc1.type = 'sine';
-        osc2.type = 'triangle'; // Adds warmth & clarity
-
-        osc1.frequency.setValueAtTime(659.25, t); // Note 1: E5
-        osc2.frequency.setValueAtTime(830.61, t); // Note 2: G#5
-
-        // 4. Alarm Tremolo / Pulse Gain (creates the rhythmic alert)
-        const pulseGain = audioCtx.createGain();
+        alarmAudio.volume = 1.0; // Ensure volume is full
         
-        // Pulse LFO: 1.8 Hz pulsing rate (gentle alarm pulse)
-        const lfo = audioCtx.createOscillator();
-        lfo.type = 'sine';
-        lfo.frequency.setValueAtTime(1.8, t);
-
-        // Depth control for pulse
-        const lfoDepth = audioCtx.createGain();
-        lfoDepth.gain.setValueAtTime(0.5, t); // Depth of pulse modulation
-
-        // Connect Pulse Modulation
-        lfo.connect(lfoDepth);
-        lfoDepth.connect(pulseGain.gain);
-        
-        // Base gain baseline for smooth pulse dips
-        pulseGain.gain.setValueAtTime(0.5, t);
-
-        // Connect Routing: Oscs -> Filter -> Pulse Gain -> Main Gain -> Speaker
-        osc1.connect(filter);
-        osc2.connect(filter);
-        filter.connect(pulseGain);
-        pulseGain.connect(mainGain);
-        mainGain.connect(audioCtx.destination);
-
-        // Start active continuous generators
-        osc1.start(t);
-        osc2.start(t);
-        lfo.start(t);
-
-        sirenNodes = { oscillators: [osc1, osc2], lfo, mainGain };
-    } catch (e) { 
-        console.error('Alarm audio init error:', e); 
+        // play() returns a promise. We handle it to prevent unhandled rejection 
+        // errors if the browser blocks autoplay before user interaction.
+        const playPromise = alarmAudio.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                isPlaying = true;
+            }).catch(e => {
+                console.warn('Playback prevented by browser. Waiting for user interaction.', e);
+            });
+        }
+    } catch (e) {
+        console.error('Alarm audio play error:', e);
     }
 }
 
 function stopSiren() {
-    if (sirenNodes) {
-        try {
-            const t = audioCtx.currentTime;
-            
-            // Smooth 0.3s fade-out (prevents sudden pop sound when turning off)
-            sirenNodes.mainGain.gain.cancelScheduledValues(t);
-            sirenNodes.mainGain.gain.linearRampToValueAtTime(0.0001, t + 0.3);
-
-            setTimeout(() => {
-                sirenNodes.oscillators.forEach(osc => osc.stop());
-                sirenNodes.lfo.stop();
-                sirenNodes = null;
-            }, 300);
-        } catch (e) {
-            sirenNodes = null;
-        }
+    if (!isPlaying) return;
+    
+    try {
+        // Smooth 0.3s fade-out (prevents sudden pop sound)
+        let fadeSteps = 10;
+        let fadeTime = 300; // 300ms total
+        let stepTime = fadeTime / fadeSteps;
+        
+        fadeInterval = setInterval(() => {
+            if (alarmAudio.volume > 0.1) {
+                alarmAudio.volume -= 0.1;
+            } else {
+                // Fade complete: pause and reset
+                clearInterval(fadeInterval);
+                alarmAudio.pause();
+                alarmAudio.currentTime = 0; // Reset track to beginning
+                alarmAudio.volume = 1.0; // Reset volume for next time
+                isPlaying = false;
+            }
+        }, stepTime);
+    } catch (e) {
+        // Fallback in case of error: stop immediately
+        alarmAudio.pause();
+        alarmAudio.currentTime = 0;
+        isPlaying = false;
     }
 }
 
-// User-interaction listener to unblock web audio autoplays
+// User-interaction listener to unblock audio autoplays globally
 document.body.addEventListener('click', () => {
-    if (audioCtx && audioCtx.state === 'suspended') {
-        audioCtx.resume();
+    // A silent play/pause trick to unlock the Audio object in strict browsers (like Safari/iOS)
+    if (!isPlaying && alarmAudio.currentTime === 0) {
+        alarmAudio.play().then(() => {
+            alarmAudio.pause();
+        }).catch(() => { /* ignore */ });
     }
-});
+}, { once: true }); // Only needs to run once
 
 
         // ─────────────────────────────────────
