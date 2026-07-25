@@ -1079,6 +1079,24 @@
         let activeSensorId = DEFAULT_ROOMS[0].sensors[0].id;
         let isCelsius = true;
         let esp32Sockets = [];
+
+    function playSystemBeep() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.type = 'triangle'; 
+        oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); 
+        gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.5); 
+    }
         let esp32Connections = [false];
         let monitoringEnabled = false;
         const lastPublishedTelemetry = new Map();
@@ -1193,86 +1211,45 @@
             return (val * 9 / 5) + 32;
         }
 
- // ─────────────────────────────────────
-// AUDIO ALARM (MP3 File Playback)
-// ─────────────────────────────────────
-// Ensure 'buzzer.mp3' is in the correct directory relative to this script/HTML file.
-const alarmAudio = new Audio('buzzer.mp3');
-alarmAudio.loop = true; // Keep the continuous looping behavior
+         // ─────────────────────────────────────
+        // AUDIO ALARM (Pure JS Web Audio API)
+        // ─────────────────────────────────────
+        let audioCtx;
+        let alarmInterval = null;
+        let isAuthenticated = false;
 
-let isPlaying = false;
-let isAuthenticated = false;
-let lastSirenStart = 0;
-let fadeInterval = null;
-
-function startSiren() {
-    if (!isAuthenticated) return;
-    if (isPlaying) return; // Already alarming
-
-    const now = Date.now();
-    if (now - lastSirenStart < 2000) return;
-    lastSirenStart = now;
-
-    try {
-        // Clear any ongoing fade-outs to prevent volume conflicts
-        if (fadeInterval) clearInterval(fadeInterval);
-        
-        alarmAudio.volume = 1.0; // Ensure volume is full
-        
-        // play() returns a promise. We handle it to prevent unhandled rejection 
-        // errors if the browser blocks autoplay before user interaction.
-        const playPromise = alarmAudio.play();
-        if (playPromise !== undefined) {
-            playPromise.then(() => {
-                isPlaying = true;
-            }).catch(e => {
-                console.warn('Playback prevented by browser. Waiting for user interaction.', e);
-            });
-        }
-    } catch (e) {
-        console.error('Alarm audio play error:', e);
-    }
-}
-
-function stopSiren() {
-    if (!isPlaying) return;
-    
-    try {
-        // Smooth 0.3s fade-out (prevents sudden pop sound)
-        let fadeSteps = 10;
-        let fadeTime = 300; // 300ms total
-        let stepTime = fadeTime / fadeSteps;
-        
-        fadeInterval = setInterval(() => {
-            if (alarmAudio.volume > 0.1) {
-                alarmAudio.volume -= 0.1;
-            } else {
-                // Fade complete: pause and reset
-                clearInterval(fadeInterval);
-                alarmAudio.pause();
-                alarmAudio.currentTime = 0; // Reset track to beginning
-                alarmAudio.volume = 1.0; // Reset volume for next time
-                isPlaying = false;
+        function playSystemBeep() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
-        }, stepTime);
-    } catch (e) {
-        // Fallback in case of error: stop immediately
-        alarmAudio.pause();
-        alarmAudio.currentTime = 0;
-        isPlaying = false;
-    }
-}
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
 
-// User-interaction listener to unblock audio autoplays globally
-document.body.addEventListener('click', () => {
-    // A silent play/pause trick to unlock the Audio object in strict browsers (like Safari/iOS)
-    if (!isPlaying && alarmAudio.currentTime === 0) {
-        alarmAudio.play().then(() => {
-            alarmAudio.pause();
-        }).catch(() => { /* ignore */ });
-    }
-}, { once: true }); // Only needs to run once
+            oscillator.type = 'triangle'; 
+            oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); 
+            gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
 
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.5); 
+        }
+
+        function startSiren() {
+            if (!isAuthenticated) return;
+            if (!alarmInterval) {
+                playSystemBeep(); 
+                alarmInterval = setInterval(playSystemBeep, 1000);
+            }
+        }
+
+        function stopSiren() {
+            if (alarmInterval) {
+                clearInterval(alarmInterval);
+                alarmInterval = null;
+            }
+        }
 
         // ─────────────────────────────────────
         // RENDER SENSOR CARDS
