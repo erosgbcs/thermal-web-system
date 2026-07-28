@@ -2356,6 +2356,14 @@ function startDataWatchdog() {
                 console.error('FB temp write failed:', e);
             }
         };
+//edit new name of sensors to database
+        window.publishSensorNameToDatabase = async function(roomId, sensorId, name) {
+    try {
+        await set(ref(database, `rooms/${roomId}/sensors/${sensorId}/name`), name);
+    } catch (e) {
+        console.error('FB name write failed:', e);
+    }
+};
 
         // Saves a new event-record entry into Firebase to keep the history log synchronized across devices.
         window.publishEventHistoryToDatabase = async function(eventEntry) {
