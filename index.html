@@ -1331,46 +1331,96 @@
         // ─────────────────────────────────────
         // RENDER SENSOR CARDS
         // ─────────────────────────────────────
-        // Draws the appliance mini-cards for the active room and marks the selected sensor visually.
         function renderSensorCards() {
-            const room = DEFAULT_ROOMS.find(r => r.id === activeRoomId);
-            if (!room) { $sensorCardsGrid.innerHTML = ''; return; }
+    const room = DEFAULT_ROOMS.find(r => r.id === activeRoomId);
+    if (!room) { $sensorCardsGrid.innerHTML = ''; return; }
 
-            $sensorCardsGrid.innerHTML = room.sensors.map(sensor => {
-                const key = `${room.id}_${sensor.id}`;
-                const sd = sensorsData[key];
-                const temp = sd ? sd.currentTemp : null;
-                const status = sd ? sd.status : 'NORMAL';
-                const isSelected = (sensor.id === activeSensorId);
-                let statusClass = 'mini-status-normal';
-                if (status === 'CRITICAL') statusClass = 'mini-status-danger';
-                else if (status === 'HIGH_HEAT') statusClass = 'mini-status-warning';
-                const alarmClass = (status === 'CRITICAL') ? ' alarm' : '';
+    $sensorCardsGrid.innerHTML = room.sensors.map(sensor => {
+        const key = `${room.id}_${sensor.id}`;
+        const sd = sensorsData[key];
+        const temp = sd ? sd.currentTemp : null;
+        const status = sd ? sd.status : 'NORMAL';
+        const isSelected = (sensor.id === activeSensorId);
+        let statusClass = 'mini-status-normal';
+        if (status === 'CRITICAL') statusClass = 'mini-status-danger';
+        else if (status === 'HIGH_HEAT') statusClass = 'mini-status-warning';
+        const alarmClass = (status === 'CRITICAL') ? ' alarm' : '';
 
-                return `<div class="sensor-mini-card${isSelected ? ' selected' : ''}${alarmClass}"
-                    data-sensor="${sensor.id}" data-room="${room.id}">
-                    <div class="sensor-mini-name">${sensor.name}</div>
-                    <div class="sensor-mini-temp" style="color:${status==='CRITICAL'?'var(--danger)':status==='HIGH_HEAT'?'var(--warning)':'var(--success)'}">
-                      ${formatTemp(temp)}
-                    </div>
-                    <span class="sensor-mini-status ${statusClass}">${status.replace('_',' ')}</span>
-                  </div>`;
-            }).join('');
+        return `<div class="sensor-mini-card${isSelected ? ' selected' : ''}${alarmClass}"
+                data-sensor="${sensor.id}" data-room="${room.id}">
+                <div class="sensor-mini-name">
+                    ${sensor.name}
+                    <button class="edit-sensor-name" data-room="${room.id}" data-sensor="${sensor.id}" 
+                            style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.8rem;margin-left:6px;" 
+                            title="Edit sensor name">✏️</button>
+                </div>
+                <div class="sensor-mini-temp" style="color:${status==='CRITICAL'?'var(--danger)':status==='HIGH_HEAT'?'var(--warning)':'var(--success)'}">
+                    ${formatTemp(temp)}
+                </div>
+                <span class="sensor-mini-status ${statusClass}">${status.replace('_',' ')}</span>
+              </div>`;
+    }).join('');
 
-            // Click handlers
-            $sensorCardsGrid.querySelectorAll('.sensor-mini-card').forEach(card => {
-                card.addEventListener('click', () => {
-                    const sensorId = card.getAttribute('data-sensor');
-                    const roomId = card.getAttribute('data-room');
-                    activeRoomId = roomId;
-                    activeSensorId = sensorId;
-                    renderSensorCards();
-                    refreshHeroDisplay();
-                    updateLimitInputForActiveSensor();
-                });
-            });
+    // Click handlers for sensor selection (already present)
+    $sensorCardsGrid.querySelectorAll('.sensor-mini-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+            // Ignore clicks on the edit button
+            if (e.target.classList.contains('edit-sensor-name')) return;
+            const sensorId = card.getAttribute('data-sensor');
+            const roomId = card.getAttribute('data-room');
+            activeRoomId = roomId;
+            activeSensorId = sensorId;
+            renderSensorCards();
+            refreshHeroDisplay();
+            updateLimitInputForActiveSensor();
+        });
+    });
+
+    // NEW: Edit button event listeners
+    $sensorCardsGrid.querySelectorAll('.edit-sensor-name').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent card selection
+            const roomId = btn.getAttribute('data-room');
+            const sensorId = btn.getAttribute('data-sensor');
+            editSensorName(roomId, sensorId);
+        });
+    });
+}
+function editSensorName(roomId, sensorId) {
+    const key = `${roomId}_${sensorId}`;
+    const sd = sensorsData[key];
+    if (!sd) {
+        alert('Sensor not found!');
+        return;
+    }
+    const newName = prompt('Enter new name for this sensor:', sd.sensorName);
+    if (newName && newName.trim() !== '') {
+        const trimmed = newName.trim();
+        // Update local data
+        sd.sensorName = trimmed;
+        // Also update the sensor object in DEFAULT_ROOMS (for future renders)
+        const room = DEFAULT_ROOMS.find(r => r.id === roomId);
+        if (room) {
+            const sensor = room.sensors.find(s => s.id === sensorId);
+            if (sensor) sensor.name = trimmed;
         }
-
+        // Persist to Firebase
+        if (typeof window.publishSensorNameToDatabase === 'function') {
+            window.publishSensorNameToDatabase(roomId, sensorId, trimmed);
+        }
+        // Re-render UI
+        renderSensorCards();
+        refreshHeroDisplay();
+        // Update thermal map dropdown if it's open
+        const mapPage = document.getElementById('thermalMappingPage');
+        if (mapPage && mapPage.style.display !== 'none') {
+            populateMapSensorSelect();
+            if (mapState.sensorId && sensorsData[mapState.sensorId]) {
+                loadSensorToMap(mapState.sensorId);
+            }
+        }
+    }
+}
         // Keeps the safe-limit input synchronized with the currently selected appliance's threshold.
         function updateLimitInputForActiveSensor() {
             const sd = getActiveSensorData();
