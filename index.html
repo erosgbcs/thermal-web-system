@@ -1352,7 +1352,7 @@
                     ${sensor.name}
                     <button class="edit-sensor-name" data-room="${room.id}" data-sensor="${sensor.id}" 
                             style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.8rem;margin-left:6px;" 
-                            title="Edit sensor name">✏️</button>
+                            title="Edit sensor name">✏️Edit Sensor Name</button>
                 </div>
                 <div class="sensor-mini-temp" style="color:${status==='CRITICAL'?'var(--danger)':status==='HIGH_HEAT'?'var(--warning)':'var(--success)'}">
                     ${formatTemp(temp)}
@@ -2407,7 +2407,6 @@ function startDataWatchdog() {
 function updateSensorCardUI(roomId, sensorId, temp, status) {
     const card = document.querySelector(`.sensor-mini-card[data-sensor="${sensorId}"][data-room="${roomId}"]`);
     if (!card) return;
-
     const tempEl = card.querySelector('.sensor-mini-temp');
     const statusEl = card.querySelector('.sensor-mini-status');
 
@@ -2431,41 +2430,68 @@ function updateSensorCardUI(roomId, sensorId, temp, status) {
 }
         // ── LISTEN TO ALL ROOM SENSORS ──
         const roomsRef = ref(database, 'rooms');
-        onValue(roomsRef, (snapshot) => {
-            if (window.ignoreInitialFirebaseTemp) {
-                window.ignoreInitialFirebaseTemp = false;
-                // Still process if there's data, but don't let it overwrite everything
-            }
-            const data = snapshot.val();
-            if (data) {
-                Object.entries(data).forEach(([roomId, roomData]) => {
-                    if (roomData && roomData.sensors) {
-                        Object.entries(roomData.sensors).forEach(([sensorId, sensorData]) => {
-                            if (sensorData && sensorData.temperature !== undefined) {
-                                const numericTemp = parseFloat(sensorData.temperature);
-                                const telemetryKey = `${roomId}_${sensorId}`;
-                                const lastPublished = lastPublishedTelemetry.get(telemetryKey);
-                                const lastUpdated = Number(sensorData.lastUpdated || 0);
+onValue(roomsRef, (snapshot) => {
+    if (window.ignoreInitialFirebaseTemp) {
+        window.ignoreInitialFirebaseTemp = false;
+    }
+    const data = snapshot.val();
+    if (!data) return;
 
-                                if (lastPublished && lastUpdated && (lastPublished.publishedAt - lastUpdated) <= 1000) {
-                                    lastPublishedTelemetry.delete(telemetryKey);
-                                    return;
-                                }
+    Object.entries(data).forEach(([roomId, roomData]) => {
+        if (!roomData || !roomData.sensors) return;
 
-                                if (lastPublished && Math.abs(lastPublished.value - numericTemp) < 0.001) {
-                                    lastPublishedTelemetry.delete(telemetryKey);
-                                    return;
-                                }
+        Object.entries(roomData.sensors).forEach(([sensorId, sensorData]) => {
+            const key = `${roomId}_${sensorId}`;
 
-                                if (!isNaN(numericTemp)) {
-                                    evaluateMetrics(roomId, sensorId, numericTemp);
-                                }
-                            }
-                        });
+            // ── Sync sensor name (runs independently of temperature) ──
+            const nameFromFB = sensorData?.name;
+            if (nameFromFB && typeof nameFromFB === 'string') {
+                if (sensorsData[key] && sensorsData[key].sensorName !== nameFromFB) {
+                    sensorsData[key].sensorName = nameFromFB;
+                    // Also update DEFAULT_ROOMS
+                    const room = DEFAULT_ROOMS.find(r => r.id === roomId);
+                    if (room) {
+                        const sensor = room.sensors.find(s => s.id === sensorId);
+                        if (sensor) sensor.name = nameFromFB;
                     }
-                });
+                    // Re-render UI
+                    renderSensorCards();
+                    refreshHeroDisplay();
+                    // Update thermal map if visible
+                    const mapPage = document.getElementById('thermalMappingPage');
+                    if (mapPage && mapPage.style.display !== 'none') {
+                        populateMapSensorSelect();
+                        if (mapState.sensorId && sensorsData[mapState.sensorId]) {
+                            loadSensorToMap(mapState.sensorId);
+                        }
+                    }
+                }
+            }
+
+            // ── Sync temperature (only if present) ──
+            if (sensorData.temperature !== undefined) {
+                const numericTemp = parseFloat(sensorData.temperature);
+                if (isNaN(numericTemp)) return;
+
+                const telemetryKey = key;
+                const lastPublished = lastPublishedTelemetry.get(telemetryKey);
+                const lastUpdated = Number(sensorData.lastUpdated || 0);
+
+                // Avoid duplicates
+                if (lastPublished && lastUpdated && (lastPublished.publishedAt - lastUpdated) <= 1000) {
+                    lastPublishedTelemetry.delete(telemetryKey);
+                    return;
+                }
+                if (lastPublished && Math.abs(lastPublished.value - numericTemp) < 0.001) {
+                    lastPublishedTelemetry.delete(telemetryKey);
+                    return;
+                }
+
+                evaluateMetrics(roomId, sensorId, numericTemp);
             }
         });
+    });
+});
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
