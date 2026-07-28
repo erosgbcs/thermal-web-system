@@ -1969,16 +1969,6 @@ window.loadSensorToMap = loadSensorToMap;
             badge.innerText = text;
             badge.className = cls;
         }
-        // Helper to send temperature unit selection to the ESP32
-function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
-    if (typeof esp32Sockets !== 'undefined' && Array.isArray(esp32Sockets)) {
-        esp32Sockets.forEach(socket => {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ unit: unitType }));
-            }
-        });
-    }
-} // <--- ADD THIS CLOSING BRACKET HERE!
 
 // ─────────────────────────────────────
 // CONNECTION WATCHDOG (Zero out if no data)
