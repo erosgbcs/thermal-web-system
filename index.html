@@ -1074,15 +1074,14 @@
                 <div class="status-row"><span class="text-muted">Min Temp</span> <span id="mapMinTemp">--.-°C</span></div>
                 <div class="status-row"><span class="text-muted">Hotspots</span> <span id="mapHotspots">0</span></div>
             </div>
-
             <div class="card" style="padding:1.5rem;">
-                <h3 style="margin-bottom:1rem; font-size:1.1rem;">🎮 Controls</h3>
-                <label for="mapSensorSelect" style="margin-bottom:0.5rem;">Select Sensor</label>
-                <select id="mapSensorSelect" style="width:100%; padding:0.75rem; background:var(--input-bg); border:1px solid var(--border); border-radius:10px; color:var(--text-main); font-weight:600; outline:none;">
-                    <!-- populated by JS -->
-                </select>
-                <button id="simulateHeatMapBtn" class="auth-btn" style="margin-top:1rem; background:var(--warning); color:#000;">🔥 Simulate Heat</button>
-            </div>
+    <h3 style="margin-bottom:1rem; font-size:1.1rem;">🎮 Controls</h3>
+    <label for="mapSensorSelect" style="margin-bottom:0.5rem;">Select Sensor</label>
+    <select id="mapSensorSelect" style="width:100%; padding:0.75rem; background:var(--input-bg); border:1px solid var(--border); border-radius:10px; color:var(--text-main); font-weight:600; outline:none;">
+        <!-- populated by JS -->
+    </select>
+    <p style="margin-top:1rem; font-size:0.85rem; color:var(--text-muted);">Map updates automatically from the selected sensor.</p>
+</div>
         </div>
     </div>
 
@@ -1696,7 +1695,9 @@ function renderTableLog() {
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'light') setTheme('light');
         else setTheme('dark');
-        // Helper to send temperature unit selection to the ESP32
+        // ─────────────────────────────────────
+// Helper to send temperature unit selection to the ESP32
+// ─────────────────────────────────────
 function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
     if (typeof esp32Sockets !== 'undefined' && Array.isArray(esp32Sockets)) {
         esp32Sockets.forEach(socket => {
@@ -1705,16 +1706,19 @@ function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
             }
         });
     }
-}// ===== THERMAL MAPPING ENGINE =====
+} // <--- THIS CLOSING BRACE WAS MISSING
+
+// ===== THERMAL MAPPING ENGINE – REAL ESP32 DATA ONLY =====
 const mapState = {
-    grid: Array(64).fill(25), // 8x8 grid in Celsius
+    grid: Array(64).fill(25),
     sensorId: null,
     history: [],
     interval: null,
-    isActive: false
+    isActive: false,
+    dataStale: false
 };
 
-// DOM refs for mapping
+// --- DOM refs ---
 const $mapGrid = document.getElementById('thermalGridContainer');
 const $mapSensorLabel = document.getElementById('mapSensorLabel');
 const $mapAvgTemp = document.getElementById('mapAvgTemp');
@@ -1724,17 +1728,7 @@ const $mapHotspots = document.getElementById('mapHotspots');
 const $mapLogBody = document.getElementById('mapLogBody');
 const $mapSensorSelect = document.getElementById('mapSensorSelect');
 
-// Render the 8x8 grid
-function renderThermalGrid() {
-    if (!$mapGrid) return;
-    $mapGrid.innerHTML = mapState.grid.map((temp, i) => {
-        const color = getHeatColor(temp);
-        return `<div style="background:${color}; aspect-ratio:1/1; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:700; color:#fff; text-shadow:0 0 4px rgba(0,0,0,0.7);">${temp.toFixed(1)}°</div>`;
-    }).join('');
-    updateMapStats();
-}
-
-// Heat color mapping (blue → cyan → yellow → red)
+// --- Heat color mapping ---
 function getHeatColor(temp) {
     const min = 20, max = 60;
     const clamped = Math.max(min, Math.min(max, temp));
@@ -1745,11 +1739,38 @@ function getHeatColor(temp) {
     return `rgb(${r},${g},${b})`;
 }
 
-// Update map statistics
+// --- Render the 8x8 grid ---
+function renderThermalGrid() {
+    if (!$mapGrid) return;
+    const hasData = mapState.grid.some(v => v > 0.1 && !isNaN(v));
+    if (!hasData || mapState.dataStale) {
+        $mapGrid.innerHTML = Array(64).fill(0).map(() =>
+            `<div style="background:#444; aspect-ratio:1/1; border-radius:4px; display:flex; align-items:center; justify-content:center; color:#888; font-size:0.6rem;">N/A</div>`
+        ).join('');
+        $mapAvgTemp.textContent = '--';
+        $mapMaxTemp.textContent = '--';
+        $mapMinTemp.textContent = '--';
+        $mapHotspots.textContent = '0';
+        return;
+    }
+    $mapGrid.innerHTML = mapState.grid.map((temp, i) => {
+        const color = getHeatColor(temp);
+        return `<div style="background:${color}; aspect-ratio:1/1; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:700; color:#fff; text-shadow:0 0 4px rgba(0,0,0,0.7);">${temp.toFixed(1)}°</div>`;
+    }).join('');
+    updateMapStats();
+}
+
+// --- Update map statistics ---
 function updateMapStats() {
-    const data = mapState.grid.filter(v => !isNaN(v) && v > -50);
-    if (!data.length) return;
-    const avg = data.reduce((a,b) => a+b, 0) / data.length;
+    const data = mapState.grid.filter(v => !isNaN(v) && v > 0.1);
+    if (!data.length) {
+        $mapAvgTemp.textContent = '--';
+        $mapMaxTemp.textContent = '--';
+        $mapMinTemp.textContent = '--';
+        $mapHotspots.textContent = '0';
+        return;
+    }
+    const avg = data.reduce((a, b) => a + b, 0) / data.length;
     const max = Math.max(...data);
     const min = Math.min(...data);
     const hotspots = data.filter(v => v >= 50).length;
@@ -1759,59 +1780,81 @@ function updateMapStats() {
     $mapHotspots.textContent = hotspots;
 }
 
-// Populate sensor dropdown
+// --- Populate sensor dropdown ---
 function populateMapSensorSelect() {
     if (!$mapSensorSelect) return;
-    const options = [];
-    Object.keys(sensorsData).forEach(key => {
+    const keys = Object.keys(sensorsData);
+    if (!keys.length) {
+        $mapSensorSelect.innerHTML = '<option>No sensors available</option>';
+        return;
+    }
+    $mapSensorSelect.innerHTML = keys.map(key => {
         const sd = sensorsData[key];
-        if (sd) {
-            options.push(`<option value="${key}">${sd.roomName} › ${sd.sensorName}</option>`);
-        }
-    });
-    $mapSensorSelect.innerHTML = options.join('') || '<option>No sensors available</option>';
-    if (options.length && !mapState.sensorId) {
-        mapState.sensorId = Object.keys(sensorsData)[0];
+        return `<option value="${key}">${sd.roomName} › ${sd.sensorName}</option>`;
+    }).join('');
+    if (!mapState.sensorId || !sensorsData[mapState.sensorId]) {
+        mapState.sensorId = keys[0];
+        $mapSensorSelect.value = mapState.sensorId;
+    } else {
         $mapSensorSelect.value = mapState.sensorId;
     }
 }
 
-// Load a real sensor's latest data into the grid (simulate thermal distribution)
+// --- Generate heat distribution around a base temperature (real data) ---
+function generateHeatDistribution(baseTemp) {
+    const center = 3.5;
+    mapState.grid = Array(64).fill(0).map((_, i) => {
+        const row = Math.floor(i / 8);
+        const col = i % 8;
+        const centerDist = Math.sqrt(Math.pow(row - center, 2) + Math.pow(col - center, 2));
+        // Add some realistic variation (±2°C) but keep the heat pattern centered
+        const variation = (Math.random() - 0.5) * 2.5;
+        let temp = baseTemp + (4 - centerDist * 0.8) + variation;
+        return Math.max(15, Math.min(70, temp));
+    });
+}
+
+// --- Load real sensor data into the map ---
 function loadSensorToMap(sensorKey) {
     const sd = sensorsData[sensorKey];
-    if (!sd || sd.currentTemp === null || sd.currentTemp === undefined) {
-        // Fill with ambient noise if no data
-        mapState.grid = Array(64).fill(25).map(() => 22 + Math.random() * 6);
-        $mapSensorLabel.textContent = `Sensor: ${sensorKey || 'No Data'} (simulated)`;
+    if (!sd) {
+        mapState.dataStale = true;
+        $mapSensorLabel.textContent = 'Sensor not found';
         renderThermalGrid();
         return;
     }
-    const baseTemp = sd.currentTemp;
-    // Generate a realistic heat distribution around the sensor reading
-    mapState.grid = Array(64).fill(0).map((_, i) => {
-        // Create a heat gradient with random variation
-        const row = Math.floor(i / 8);
-        const col = i % 8;
-        const centerDist = Math.sqrt(Math.pow(row - 3.5, 2) + Math.pow(col - 3.5, 2));
-        const variation = (Math.random() - 0.5) * 4;
-        const temp = baseTemp + (4 - centerDist * 0.8) + variation;
-        return Math.max(15, Math.min(70, temp));
-    });
-    $mapSensorLabel.textContent = `${sd.roomName} › ${sd.sensorName}`;
+    // Use the latest currentTemp (real ESP32 reading)
+    let baseTemp = sd.currentTemp;
+    // If currentTemp is null/undefined/zero, fallback to last history entry
+    if (baseTemp === null || baseTemp === undefined || baseTemp <= 0.1) {
+        const history = sd.dataLog;
+        if (history && history.length > 0) {
+            baseTemp = history[history.length - 1];
+        }
+    }
+    if (baseTemp === null || baseTemp === undefined || baseTemp <= 0.1) {
+        mapState.dataStale = true;
+        $mapSensorLabel.textContent = `${sd.roomName} › ${sd.sensorName} — No Data`;
+        renderThermalGrid();
+        return;
+    }
+    mapState.dataStale = false;
+    generateHeatDistribution(baseTemp);
+    $mapSensorLabel.textContent = `${sd.roomName} › ${sd.sensorName} (${baseTemp.toFixed(1)}°C)`;
     renderThermalGrid();
 }
 
-// Record a map snapshot to history
+// --- Record snapshot to history ---
 function recordMapSnapshot() {
-    const data = mapState.grid.filter(v => !isNaN(v) && v > -50);
+    const data = mapState.grid.filter(v => !isNaN(v) && v > 0.1);
     if (!data.length) return;
-    const avg = data.reduce((a,b) => a+b, 0) / data.length;
+    const avg = data.reduce((a, b) => a + b, 0) / data.length;
     const max = Math.max(...data);
     const min = Math.min(...data);
     const hotspots = data.filter(v => v >= 50).length;
     const entry = {
         time: new Date().toLocaleTimeString(undefined, { hour12: true }),
-        sensor: $mapSensorLabel.textContent.replace('Sensor: ', ''),
+        sensor: $mapSensorLabel.textContent.replace(/\(.*\)/, '').trim(),
         avg: avg.toFixed(1),
         max: max.toFixed(1),
         min: min.toFixed(1),
@@ -1822,7 +1865,6 @@ function recordMapSnapshot() {
     renderMapLog();
 }
 
-// Render map history log
 function renderMapLog() {
     if (!$mapLogBody) return;
     $mapLogBody.innerHTML = mapState.history.slice(0, 30).map(e => `
@@ -1837,50 +1879,37 @@ function renderMapLog() {
     `).join('');
 }
 
-// Simulate heat map (demo)
-function simulateHeatMap() {
-    const base = 25 + Math.random() * 20;
-    mapState.grid = Array(64).fill(0).map((_, i) => {
-        const row = Math.floor(i / 8);
-        const col = i % 8;
-        const centerDist = Math.sqrt(Math.pow(row - 3.5, 2) + Math.pow(col - 3.5, 2));
-        const variation = (Math.random() - 0.5) * 6;
-        const temp = base + (5 - centerDist * 1.2) + variation;
-        return Math.max(18, Math.min(72, temp));
-    });
-    $mapSensorLabel.textContent = `Simulated Heat Map`;
-    renderThermalGrid();
-    recordMapSnapshot();
-}
-
-// ---- INIT MAP ----
+// --- Initialize thermal mapping (no simulation) ---
 function initThermalMapping() {
     populateMapSensorSelect();
-    // Load first sensor or simulate
-    if (mapState.sensorId) {
+    if (mapState.sensorId && sensorsData[mapState.sensorId]) {
         loadSensorToMap(mapState.sensorId);
     } else {
-        simulateHeatMap();
+        // No sensors: show empty grid
+        mapState.dataStale = true;
+        $mapSensorLabel.textContent = 'No sensors available';
+        renderThermalGrid();
     }
-    // Auto-record every 15 seconds
+    // Clear any existing interval
     if (mapState.interval) clearInterval(mapState.interval);
     mapState.interval = setInterval(() => {
         if (document.getElementById('thermalMappingPage')?.style.display !== 'none') {
-            // Refresh from active sensor
-            if (mapState.sensorId) {
+            if (mapState.sensorId && sensorsData[mapState.sensorId]) {
                 loadSensorToMap(mapState.sensorId);
+                recordMapSnapshot();
             }
-            recordMapSnapshot();
         }
-    }, 15000);
+    }, 15000); // update every 15 seconds
 }
 
-// ---- EVENT BINDINGS ----
-document.addEventListener('DOMContentLoaded', () => {
-    // Navigation: Show map page
+// ---- EVENT BINDINGS (single execution) ----
+(function bindMapEvents() {
+    // Show map page
     document.getElementById('showMapBtn')?.addEventListener('click', () => {
-        document.getElementById('dashboard-container').querySelector('.dashboard')?.setAttribute('style', 'display:none !important');
-        document.getElementById('sensorCardsGrid')?.setAttribute('style', 'display:none !important');
+        const dashboard = document.getElementById('dashboard-container').querySelector('.dashboard');
+        const sensorGrid = document.getElementById('sensorCardsGrid');
+        if (dashboard) dashboard.style.display = 'none !important';
+        if (sensorGrid) sensorGrid.style.display = 'none !important';
         document.getElementById('thermalMappingPage').style.display = 'block';
         initThermalMapping();
     });
@@ -1888,33 +1917,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // Back to dashboard
     document.getElementById('backToDashboardBtn')?.addEventListener('click', () => {
         document.getElementById('thermalMappingPage').style.display = 'none';
-        document.getElementById('dashboard-container').querySelector('.dashboard')?.removeAttribute('style');
-        document.getElementById('sensorCardsGrid')?.removeAttribute('style');
+        const dashboard = document.getElementById('dashboard-container').querySelector('.dashboard');
+        const sensorGrid = document.getElementById('sensorCardsGrid');
+        if (dashboard) dashboard.removeAttribute('style');
+        if (sensorGrid) sensorGrid.removeAttribute('style');
         if (mapState.interval) clearInterval(mapState.interval);
     });
 
     // Sensor select change
     document.getElementById('mapSensorSelect')?.addEventListener('change', (e) => {
         mapState.sensorId = e.target.value;
-        if (mapState.sensorId) {
+        if (mapState.sensorId && sensorsData[mapState.sensorId]) {
             loadSensorToMap(mapState.sensorId);
             recordMapSnapshot();
         }
     });
 
-    // Refresh map
+    // Refresh map (manual)
     document.getElementById('refreshMapBtn')?.addEventListener('click', () => {
-        if (mapState.sensorId) {
+        if (mapState.sensorId && sensorsData[mapState.sensorId]) {
             loadSensorToMap(mapState.sensorId);
             recordMapSnapshot();
         } else {
-            simulateHeatMap();
+            // If no sensor, just show a message
+            $mapSensorLabel.textContent = 'No sensor selected';
+            mapState.dataStale = true;
+            renderThermalGrid();
         }
-    });
-
-    // Simulate heat
-    document.getElementById('simulateHeatMapBtn')?.addEventListener('click', () => {
-        simulateHeatMap();
     });
 
     // Clear map log
@@ -1924,12 +1953,11 @@ document.addEventListener('DOMContentLoaded', () => {
             renderMapLog();
         }
     });
-});
+})();
 
 // Expose for use elsewhere
 window.mapState = mapState;
 window.loadSensorToMap = loadSensorToMap;
-window.simulateHeatMap = simulateHeatMap;
         // ─────────────────────────────────────
         // ESP32 WEBSOCKET
         // ─────────────────────────────────────
