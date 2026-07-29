@@ -2508,7 +2508,21 @@
             updateSensorCardUI(roomId, sensorId, newTemp, sd.status);
           }
         }
+                // ---- Auto‑update thermal map if it's currently visible ----
+        const mapPage = document.getElementById("thermalMappingPage");
+        const sensorKey = `${roomId}_${sensorId}`;
+        if (
+          mapPage &&
+          mapPage.style.display !== "none" &&
+          mapState.sensorId === sensorKey
+        ) {
+          loadSensorToMap(sensorKey);
+          if (!mapState.dataStale) {
+            recordMapSnapshot();
+          }
+        }
       }
+      
       function appendLogEntryToTable(item) {
         if (!$telemetryLogBody) return;
 
@@ -2697,10 +2711,9 @@
           });
         }
       }
-      // ===== THERMAL MAPPING ENGINE
       // ===== THERMAL MAPPING ENGINE – REAL ESP32 DATA ONLY =====
       const mapState = {
-        grid: Array(64).fill(25),
+        grid: Array(64).fill(0),
         sensorId: null,
         history: [],
         interval: null,
@@ -2817,9 +2830,8 @@
             const centerDist = Math.sqrt(
               Math.pow(row - center, 2) + Math.pow(col - center, 2),
             );
-            // Add some realistic variation (±2°C) but keep the heat pattern centered
-            const variation = (Math.random() - 0.5) * 2.5;
-            let temp = baseTemp + (4 - centerDist * 0.8) + variation;
+            // Simple linear falloff – no random jitter
+            let temp = baseTemp - centerDist * 1.5; // adjust the falloff rate to taste
             return Math.max(15, Math.min(70, temp));
           });
       }
@@ -2939,27 +2951,24 @@
       // --- Initialize thermal mapping (no simulation) ---
       function initThermalMapping() {
         populateMapSensorSelect();
-        if (mapState.sensorId && sensorsData[mapState.sensorId]) {
-          loadSensorToMap(mapState.sensorId);
-        } else {
-          // No sensors: show empty grid
-          mapState.dataStale = true;
-          $mapSensorLabel.textContent = "No sensors available";
-          renderThermalGrid();
-        }
+        mapState.dataStale = true;
+        mapState.grid = Array(64).fill(0);
+        $mapSensorLabel.textContent = "No data – select a sensor";
+        renderThermalGrid();
+
         // Clear any existing interval
         if (mapState.interval) clearInterval(mapState.interval);
-        mapState.interval = setInterval(() => {
-          if (
-            document.getElementById("thermalMappingPage")?.style.display !==
-            "none"
-          ) {
-            if (mapState.sensorId && sensorsData[mapState.sensorId]) {
-              loadSensorToMap(mapState.sensorId);
+        if (
+          document.getElementById("thermalMappingPage")?.style.display !==
+          "none"
+        ) {
+          if (mapState.sensorId && sensorsData[mapState.sensorId]) {
+            loadSensorToMap(mapState.sensorId);
+            if (!mapState.dataStale) {
               recordMapSnapshot();
             }
           }
-        }, 100); // update every 15 seconds
+        }
       }
 
       // ---- EVENT BINDINGS (single execution) ----
@@ -3165,6 +3174,7 @@
                   const rId = payload.roomId || activeRoomId;
                   const sId = payload.sensorId || activeSensorId;
                   evaluateMetrics(rId, sId, numericTemp);
+                  
                 }
               }
             } catch (e) {
