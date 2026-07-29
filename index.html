@@ -599,6 +599,21 @@
             flex-direction: column;
             gap: 1.5rem;
         }
+
+.loader-logos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.loader-logo-school {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));
+  animation: pulseLogo 2.5s infinite ease-in-out;
+}
         .status-row {
             display: flex;
             justify-content: space-between;
@@ -923,8 +938,10 @@
     <!-- ═══════════ AUTH SCREEN ═══════════ -->
     <div id="auth-screen">
         <div class="auth-card">
-            <img class="auth-logo" src="logo.png" alt="Logo" onerror="this.style.display='none'" />
-            <div class="auth-title">Admin Access</div>
+            <div style="display:flex; align-items:center; justify-content:center; gap:1rem; margin-bottom:0.75rem;">
+  <img class="auth-logo" src="thermeye_logo.png" alt="ThermE.Y.E. Logo" onerror="this.style.display='none'" style="width:70px;height:70px;object-fit:contain;" />
+  <img class="auth-logo" src="ffhnas_logo.png" alt="FFHNAS Logo" onerror="this.style.display='none'" style="width:70px;height:70px;object-fit:contain;" />
+</div> class="auth-title">Admin Access</div>
             <div class="auth-subtitle">Sign in with your dedicated admin account</div>
             <input type="email" class="auth-input" id="authEmail" placeholder="Admin email address" autocomplete="email" />
             <div class="password-row">
