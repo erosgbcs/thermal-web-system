@@ -289,7 +289,14 @@
             0% 50%; /* moves completely left */
         }
       }
-
+      .loader-tagline {
+        font-size: 1.05rem;
+        color: var(--text-muted);
+        font-weight: 500;
+        margin-bottom: 1.5rem; /* gap below the tagline */
+        animation: fadeSlideUp 0.8s ease-out 0.6s both;
+        letter-spacing: 0.05em;
+      }
       /* Enhanced progress bar */
       .progress-bar-container {
         width: 75%;
@@ -1839,7 +1846,7 @@
               style="
                 display: grid;
                 grid-template-columns: repeat(8, 1fr);
-                gap: 4px;
+                gap: 0px;
                 aspect-ratio: 1/1;
                 max-width: 500px;
                 margin: 0 auto;
