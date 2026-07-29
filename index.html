@@ -1511,94 +1511,117 @@ function editSensorName(roomId, sensorId) {
         // EVALUATE METRICS (called on new temp)
         // ─────────────────────────────────────
         function evaluateMetrics(roomId, sensorId, newTemp) {
-            if (!isAuthenticated || !monitoringEnabled) return;
-            
-            const key = `${roomId}_${sensorId}`;
-            let sd = sensorsData[key];
-            
-            // Auto-create missing sensor entry if dynamically introduced
-            if (!sd) {
-                const room = DEFAULT_ROOMS.find(r => r.id === roomId) || { id: roomId, name: roomId, sensors: [] };
-                sensorsData[key] = {
-                    roomId: roomId,
-                    roomName: room.name,
-                    sensorId: sensorId,
-                    sensorName: sensorId,
-                    dataLog: [],
-                    safeLimit: 50.0,
-                    currentTemp: null,
-                    status: 'NORMAL'
-                };
-                sd = sensorsData[key];
-            }
+    if (!isAuthenticated || !monitoringEnabled) return;
 
-            const previousStatus = sd.status;
-            
-            // Update data log array and current temp metrics
-            sd.dataLog.push(newTemp);
-            sd.currentTemp = newTemp;
+    const key = `${roomId}_${sensorId}`;
+    let sd = sensorsData[key];
 
-            // Determine current thermal status
-            if (newTemp >= sd.safeLimit) {
-                sd.status = 'CRITICAL';
-            } else if (newTemp >= sd.safeLimit - 2.0) {
-                sd.status = 'HIGH_HEAT';
-            } else {
-                sd.status = 'NORMAL';
-            }
+    if (!sd) {
+        const room = DEFAULT_ROOMS.find(r => r.id === roomId) || { id: roomId, name: roomId, sensors: [] };
+        sensorsData[key] = {
+            roomId, roomName: room.name,
+            sensorId, sensorName: sensorId,
+            dataLog: [],
+            safeLimit: 50.0,
+            currentTemp: null,
+            status: 'NORMAL',
+            lastEventTime: 0          // keep track of last event to throttle
+        };
+        sd = sensorsData[key];
+    }
 
-            const statusChanged = previousStatus !== sd.status;
+    sd.dataLog.push(newTemp);
+    sd.currentTemp = newTemp;
 
-            // Log events ONLY when status changes (prevents spamming DOM and Firebase writes)
-            if (statusChanged) {
-                const nowTime = Date.now();
-                const timeStr = new Date(nowTime).toLocaleTimeString('en-US', { hour12: true });
-                
-                const eventEntry = {
-                    timestamp: nowTime,
-                    time: timeStr,
-                    roomId: sd.roomId,
-                    roomName: sd.roomName,
-                    sensorId: sd.sensorId,
-                    sensorName: sd.sensorName,
-                    event: sd.status === 'CRITICAL' ? 'ALARM' : 'STATUS_CHANGE',
-                    temp: newTemp,
-                    status: sd.status === 'CRITICAL' ? 'ALARM DETECTED' : sd.status === 'HIGH_HEAT' ? 'HIGH HEAT' : 'NORMAL',
-                    isAlarm: sd.status === 'CRITICAL'
-                };
-                
-                // Prepend locally for immediate UI feedback
-                globalEventHistory.unshift(eventEntry);
-                appendLogEntryToTable(eventEntry);
+    // Determine status
+    if (newTemp >= sd.safeLimit) {
+        sd.status = 'CRITICAL';
+    } else if (newTemp >= sd.safeLimit - 2.0) {
+        sd.status = 'HIGH_HEAT';
+    } else {
+        sd.status = 'NORMAL';
+    }
 
-                if (globalEventHistory.length > 500) globalEventHistory.length = 500;
+    // ---- ALWAYS LOG AN EVENT (throttled) ----
+    const now = Date.now();
+    if (!sd.lastEventTime || (now - sd.lastEventTime > 2000)) {  // throttle events to max 1 every 2s
+        sd.lastEventTime = now;
 
-                // Publish event entry to Firebase database module
-                if (typeof window.publishEventHistoryToDatabase === 'function') {
-                    window.publishEventHistoryToDatabase(eventEntry);
-                }
-            }
+        const timeStr = new Date(now).toLocaleTimeString('en-US', { hour12: true });
+        const eventEntry = {
+            timestamp: now,
+            time: timeStr,
+            roomId: sd.roomId,
+            roomName: sd.roomName,
+            sensorId: sd.sensorId,
+            sensorName: sd.sensorName,
+            event: sd.status === 'CRITICAL' ? 'ALARM' : sd.status === 'HIGH_HEAT' ? 'WARNING' : 'READING',
+            temp: newTemp,
+            status: sd.status === 'CRITICAL' ? 'ALARM DETECTED' : sd.status === 'HIGH_HEAT' ? 'HIGH HEAT' : 'NORMAL',
+            isAlarm: sd.status === 'CRITICAL'
+        };
 
-            // Throttled Firebase Temperature Write (Max 1 update per 2000ms per sensor)
-            const nowTimeCheck = Date.now();
-            const lastWrite = lastDbWriteTime.get(key) || 0;
-            if (statusChanged || (nowTimeCheck - lastWrite > 2000)) {
-                lastDbWriteTime.set(key, nowTimeCheck);
-                if (typeof window.publishTemperatureToDatabase === 'function') {
-                    window.publishTemperatureToDatabase(roomId, sensorId, newTemp);
-                }
-            }
+        globalEventHistory.unshift(eventEntry);
+        if (globalEventHistory.length > 500) globalEventHistory.length = 500;
 
-            // Refresh display elements for active dashboard elements
-            if (roomId === activeRoomId && sensorId === activeSensorId) {
-                refreshHeroDisplay();
-            } else {
-                if (typeof updateSensorCardUI === 'function') {
-                    updateSensorCardUI(roomId, sensorId, newTemp, sd.status);
-                }
-            }
+        // Update the table (now using the clean version below)
+        if (typeof appendLogEntryToTable === 'function') {
+            appendLogEntryToTable(eventEntry);
         }
 
+        if (typeof window.publishEventHistoryToDatabase === 'function') {
+            window.publishEventHistoryToDatabase(eventEntry);
+        }
+    }
+
+    // ---- Throttled temperature write to Firebase (unchanged) ----
+    const lastWrite = lastDbWriteTime.get(key) || 0;
+    if (now - lastWrite > 2000) {
+        lastDbWriteTime.set(key, now);
+        if (typeof window.publishTemperatureToDatabase === 'function') {
+            window.publishTemperatureToDatabase(roomId, sensorId, newTemp);
+        }
+    }
+
+    // ---- Refresh UI ----
+    if (roomId === activeRoomId && sensorId === activeSensorId) {
+        refreshHeroDisplay();
+    } else {
+        if (typeof updateSensorCardUI === 'function') {
+            updateSensorCardUI(roomId, sensorId, newTemp, sd.status);
+        }
+    }
+}
+function appendLogEntryToTable(item) {
+    if (!$telemetryLogBody) return;
+
+    const row = document.createElement('tr');
+    if (item.isAlarm || item.status === 'ALARM DETECTED') {
+        row.className = 'row-alarm';
+    }
+
+    row.innerHTML = `
+        <td>${formatHistoryTime(item)}</td>
+        <td>${item.roomName || '--'}</td>
+        <td>${item.sensorName || '--'}</td>
+        <td><strong>${item.event || 'STATUS_CHANGE'}</strong></td>
+        <td>${formatTemp(item.temp)}</td>
+        <td>${item.status}</td>
+    `;
+
+    $telemetryLogBody.prepend(row);
+
+    while ($telemetryLogBody.children.length > 100) {
+        $telemetryLogBody.removeChild($telemetryLogBody.lastElementChild);
+    }
+}
+
+function formatHistoryTime(entry) {
+    if (entry && entry.timestamp) {
+        return new Date(entry.timestamp).toLocaleTimeString(undefined, { hour12: true });
+    }
+    return entry && entry.time ? entry.time : '--:--:--';
+}
         function renderTableLog() {
     if (!$telemetryLogBody) return;
 
