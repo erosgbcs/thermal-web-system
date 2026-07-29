@@ -1867,16 +1867,22 @@ function generateHeatDistribution(baseTemp) {
 }
 
 // --- Load real sensor data into the map ---
+// --- Load real sensor data into the map (Generates/Updates Thermal Map) ---
 function loadSensorToMap(sensorKey) {
     const sd = sensorsData[sensorKey];
+    
+    // Check if sensor exists
     if (!sd) {
         mapState.dataStale = true;
-        $mapSensorLabel.textContent = 'Sensor not found';
+        const mapSensorLabel = document.getElementById('mapSensorLabel');
+        if (mapSensorLabel) mapSensorLabel.textContent = 'Sensor not found';
         renderThermalGrid();
         return;
     }
+    
     // Use the latest currentTemp (real ESP32 reading)
     let baseTemp = sd.currentTemp;
+    
     // If currentTemp is null/undefined/zero, fallback to last history entry
     if (baseTemp === null || baseTemp === undefined || baseTemp <= 0.1) {
         const history = sd.dataLog;
@@ -1884,18 +1890,51 @@ function loadSensorToMap(sensorKey) {
             baseTemp = history[history.length - 1];
         }
     }
+    
+    // Check if we still have no valid temperature data
     if (baseTemp === null || baseTemp === undefined || baseTemp <= 0.1) {
         mapState.dataStale = true;
-        $mapSensorLabel.textContent = `${sd.roomName} › ${sd.sensorName} — No Data`;
+        const mapSensorLabel = document.getElementById('mapSensorLabel');
+        if (mapSensorLabel) mapSensorLabel.textContent = `${sd.roomName} › ${sd.sensorName} — No Data`;
         renderThermalGrid();
         return;
     }
+    
+    // Valid data found: Generate map distribution and render
     mapState.dataStale = false;
     generateHeatDistribution(baseTemp);
-    $mapSensorLabel.textContent = `${sd.roomName} › ${sd.sensorName} (${baseTemp.toFixed(1)}°C)`;
+    
+    const mapSensorLabel = document.getElementById('mapSensorLabel');
+    if (mapSensorLabel) mapSensorLabel.textContent = `${sd.roomName} › ${sd.sensorName} (${baseTemp.toFixed(1)}°C)`;
+    
     renderThermalGrid();
 }
 
+// --- Fixed Refresh Map Event Listener ---
+document.getElementById('refreshMapBtn')?.addEventListener('click', () => {
+    // 1. Ensure we grab the currently selected sensor from the dropdown to avoid state mismatches
+    const mapSensorSelect = document.getElementById('mapSensorSelect');
+    if (mapSensorSelect && mapSensorSelect.value) {
+        mapState.sensorId = mapSensorSelect.value;
+    }
+
+    // 2. Validate sensor and update map
+    if (mapState.sensorId && sensorsData[mapState.sensorId]) {
+        loadSensorToMap(mapState.sensorId);
+        
+        // 3. FIX: Only record a snapshot to the log if the data successfully loaded and is not stale
+        if (!mapState.dataStale) {
+            recordMapSnapshot();
+        }
+    } else {
+        const mapSensorLabel = document.getElementById('mapSensorLabel');
+        if (mapSensorLabel) {
+            mapSensorLabel.textContent = 'No sensor selected';
+        }
+        mapState.dataStale = true;
+        renderThermalGrid();
+    }
+});
 // --- Record snapshot to history ---
 function recordMapSnapshot() {
     const data = mapState.grid.filter(v => !isNaN(v) && v > 0.1);
@@ -1951,7 +1990,7 @@ function initThermalMapping() {
                 recordMapSnapshot();
             }
         }
-    }, 15000); // update every 15 seconds
+    }, 100); // update every 15 seconds
 }
 
 // ---- EVENT BINDINGS (single execution) ----
@@ -2134,11 +2173,18 @@ function startDataWatchdog() {
                 });
 
                 socket.addEventListener('close', () => {
-                    esp32Connections[index] = false;
-                    setDeviceBadge(index, 'ESP32 Offline', 'badge offline');
-                    if (esp32Sockets[index] === socket) esp32Sockets[index] = null;
-                    zeroOutSensorReadings();
-                });
+    esp32Connections[index] = false;
+    setDeviceBadge(index, 'ESP32 Offline', 'badge offline');
+    if (esp32Sockets[index] === socket) esp32Sockets[index] = null;
+    zeroOutSensorReadings();
+    
+    // Automatically attempt to reconnect every 5 seconds
+    setTimeout(() => {
+        if (monitoringEnabled) {
+            connectToEsp32(index);
+        }
+    }, 5000);
+});
 
                 socket.addEventListener('error', () => {
                     esp32Connections[index] = false;
