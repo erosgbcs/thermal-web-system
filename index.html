@@ -1507,127 +1507,151 @@ function editSensorName(roomId, sensorId) {
             renderTableLog();
         }
 
-       // ─────────────────────────────────────
-// EVALUATE METRICS (called on new temp)
 // ─────────────────────────────────────
-function evaluateMetrics(roomId, sensorId, newTemp) {
-    if (!isAuthenticated || !monitoringEnabled) return;
-    
-    const key = `${roomId}_${sensorId}`;
-    let sd = sensorsData[key];
-    
-    // Auto-create if unknown sensor
-    if (!sd) {
-        const room = DEFAULT_ROOMS.find(r => r.id === roomId) || { id: roomId, name: roomId, sensors: [] };
-        const sensor = { id: sensorId, name: sensorId };
-        sensorsData[key] = {
-            roomId: roomId,
-            roomName: room.name,
-            sensorId: sensorId,
-            sensorName: sensor.name,
-            dataLog: [],
-            safeLimit: 50.0,
-            currentTemp: null,
-            status: 'NORMAL'
-        };
-        sd = sensorsData[key];
-    }
+        // EVALUATE METRICS (called on new temp)
+        // ─────────────────────────────────────
+        function evaluateMetrics(roomId, sensorId, newTemp) {
+            if (!isAuthenticated || !monitoringEnabled) return;
+            
+            const key = `${roomId}_${sensorId}`;
+            let sd = sensorsData[key];
+            
+            // Auto-create missing sensor entry if dynamically introduced
+            if (!sd) {
+                const room = DEFAULT_ROOMS.find(r => r.id === roomId) || { id: roomId, name: roomId, sensors: [] };
+                sensorsData[key] = {
+                    roomId: roomId,
+                    roomName: room.name,
+                    sensorId: sensorId,
+                    sensorName: sensorId,
+                    dataLog: [],
+                    safeLimit: 50.0,
+                    currentTemp: null,
+                    status: 'NORMAL'
+                };
+                sd = sensorsData[key];
+            }
 
-    const previousStatus = sd.status;
-    
-    // Update arrays and current temp
-    sd.dataLog.push(newTemp);
-    sd.currentTemp = newTemp;
+            const previousStatus = sd.status;
+            
+            // Update data log array and current temp metrics
+            sd.dataLog.push(newTemp);
+            sd.currentTemp = newTemp;
 
-    // Determine status
-    if (newTemp >= sd.safeLimit) {
-        sd.status = 'CRITICAL';
-    } else if (newTemp >= sd.safeLimit - 2.0) {
-        sd.status = 'HIGH_HEAT';
-    } else {
-        sd.status = 'NORMAL';
-    }
+            // Determine current thermal status
+            if (newTemp >= sd.safeLimit) {
+                sd.status = 'CRITICAL';
+            } else if (newTemp >= sd.safeLimit - 2.0) {
+                sd.status = 'HIGH_HEAT';
+            } else {
+                sd.status = 'NORMAL';
+            }
 
-    const statusChanged = previousStatus !== sd.status;
+            const statusChanged = previousStatus !== sd.status;
 
-    // OPTIMIZATION: Log events ONLY when status changes (prevents DOM and Firebase spam)
-    if (statusChanged) {
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString(undefined, { hour12: true });
-        
-        const eventEntry = {
-            timestamp: Date.now(),
-            time: timeStr,
-            roomId: sd.roomId,
-            roomName: sd.roomName,
-            sensorId: sd.sensorId,
-            sensorName: sd.sensorName,
-            event: sd.status === 'CRITICAL' ? 'ALARM' : 'STATUS_CHANGE',
-            temp: newTemp,
-            status: sd.status === 'CRITICAL' ? 'ALARM DETECTED' : sd.status === 'HIGH_HEAT' ? 'HIGH HEAT' : 'NORMAL',
-            isAlarm: sd.status === 'CRITICAL'
-        };
-        
-        globalEventHistory.unshift(eventEntry);
-        
-        // FAST UI UPDATE: Prepend instead of full re-render
-        if (typeof appendLogEntryToTable === 'function') {
-            appendLogEntryToTable(eventEntry);
+            // Log events ONLY when status changes (prevents spamming DOM and Firebase writes)
+            if (statusChanged) {
+                const nowTime = Date.now();
+                const timeStr = new Date(nowTime).toLocaleTimeString('en-US', { hour12: true });
+                
+                const eventEntry = {
+                    timestamp: nowTime,
+                    time: timeStr,
+                    roomId: sd.roomId,
+                    roomName: sd.roomName,
+                    sensorId: sd.sensorId,
+                    sensorName: sd.sensorName,
+                    event: sd.status === 'CRITICAL' ? 'ALARM' : 'STATUS_CHANGE',
+                    temp: newTemp,
+                    status: sd.status === 'CRITICAL' ? 'ALARM DETECTED' : sd.status === 'HIGH_HEAT' ? 'HIGH HEAT' : 'NORMAL',
+                    isAlarm: sd.status === 'CRITICAL'
+                };
+                
+                // Prepend locally for immediate UI feedback
+                globalEventHistory.unshift(eventEntry);
+                appendLogEntryToTable(eventEntry);
+
+                if (globalEventHistory.length > 500) globalEventHistory.length = 500;
+
+                // Publish event entry to Firebase database module
+                if (typeof window.publishEventHistoryToDatabase === 'function') {
+                    window.publishEventHistoryToDatabase(eventEntry);
+                }
+            }
+
+            // Throttled Firebase Temperature Write (Max 1 update per 2000ms per sensor)
+            const nowTimeCheck = Date.now();
+            const lastWrite = lastDbWriteTime.get(key) || 0;
+            if (statusChanged || (nowTimeCheck - lastWrite > 2000)) {
+                lastDbWriteTime.set(key, nowTimeCheck);
+                if (typeof window.publishTemperatureToDatabase === 'function') {
+                    window.publishTemperatureToDatabase(roomId, sensorId, newTemp);
+                }
+            }
+
+            // Refresh display elements for active dashboard elements
+            if (roomId === activeRoomId && sensorId === activeSensorId) {
+                refreshHeroDisplay();
+            } else {
+                if (typeof updateSensorCardUI === 'function') {
+                    updateSensorCardUI(roomId, sensorId, newTemp, sd.status);
+                }
+            }
         }
 
-        // Keep log manageable locally
-        if (globalEventHistory.length > 500) globalEventHistory.length = 500;
+        function renderHistoryLog() {
+            const $tbody = document.getElementById('telemetryLogBody');
+            if (!$tbody) return;
 
-        // Publish event history to Firebase
-        if (typeof window.publishEventHistoryToDatabase === 'function') {
-            window.publishEventHistoryToDatabase(eventEntry);
+            // Use globalEventHistory array
+            if (!globalEventHistory || globalEventHistory.length === 0) {
+                $tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#888;">No history events recorded yet.</td></tr>`;
+                return;
+            }
+
+            $tbody.innerHTML = globalEventHistory.map(item => {
+                const isAlarm = item.isAlarm || item.status === 'ALARM DETECTED' || item.event === 'ALARM';
+                return `
+                    <tr style="${isAlarm ? 'background-color: rgba(255, 0, 0, 0.15); color: #ff6b6b;' : ''}">
+                        <td>${item.time || new Date(item.timestamp).toLocaleTimeString('en-US', { hour12: true })}</td>
+                        <td>${item.roomName || item.roomId}</td>
+                        <td>${item.sensorName || item.sensorId}</td>
+                        <td><strong>${item.event}</strong></td>
+                        <td>${item.temp}°</td>
+                        <td>${item.status}</td>
+                    </tr>
+                `;
+            }).join('');
         }
-    }
-    function renderHistoryLog() {
-    const $tbody = document.getElementById('historyLogBody'); // adjust selector to match your table container
-    if (!$tbody) return;
+        function appendLogEntryToTable(item) {
+            const $tbody = document.getElementById('telemetryLogBody');
+            if (!$tbody) return;
 
-    if (!mapState.history || mapState.history.length === 0) {
-        $tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#888;">No history events recorded yet.</td></tr>`;
-        return;
-    }
+            // Remove the "No history events" placeholder row if it exists
+            if ($tbody.querySelector('td[colspan]')) {
+                $tbody.innerHTML = '';
+            }
 
-    $tbody.innerHTML = mapState.history.map(item => {
-        const isAlarm = item.status === 'ALARM_DETECTED' || item.event === 'ALARM';
-        return `
-            <tr style="${isAlarm ? 'background-color: rgba(255, 0, 0, 0.08); color: #a00;' : ''}">
-                <td>${formatLogTime(item.timestamp)}</td>
-                <td>${item.room}</td>
-                <td>${item.sensor}</td>
+            const isAlarm = item.isAlarm || item.status === 'ALARM DETECTED' || item.event === 'ALARM';
+            
+            const tr = document.createElement('tr');
+            if (isAlarm) {
+                tr.style.backgroundColor = 'rgba(255, 0, 0, 0.15)';
+                tr.style.color = '#ff6b6b';
+            }
+
+            tr.innerHTML = `
+                <td>${item.time}</td>
+                <td>${item.roomName}</td>
+                <td>${item.sensorName}</td>
                 <td><strong>${item.event}</strong></td>
-                <td>${item.peak}</td>
+                <td>${item.temp}°</td>
                 <td>${item.status}</td>
-            </tr>
-        `;
-    }).join('');
-}
+            `;
 
-    // THROTTLED FIREBASE WRITE: Max 1 update per 2000ms per sensor
-    const nowTime = Date.now();
-    const lastWrite = lastDbWriteTime.get(key) || 0;
-    if (statusChanged || (nowTime - lastWrite > 2000)) {
-        lastDbWriteTime.set(key, nowTime);
-        if (typeof window.publishTemperatureToDatabase === 'function') {
-            window.publishTemperatureToDatabase(roomId, sensorId, newTemp);
+            // Insert at the very top of the table
+            $tbody.insertBefore(tr, $tbody.firstChild);
         }
-    }
-
-    // Refresh UI if this is the active sensor
-    if (roomId === activeRoomId && sensorId === activeSensorId) {
-        refreshHeroDisplay();
-    } else {
-        // Fast UI update instead of destroying the DOM
-        if (typeof updateSensorCardUI === 'function') {
-            updateSensorCardUI(roomId, sensorId, newTemp, sd.status);
-        }
-    }
-}
-
         // ─────────────────────────────────────
         // RENDER LOG TABLE
         // ─────────────────────────────────────
@@ -1776,10 +1800,12 @@ function renderTableLog() {
             const current = document.documentElement.getAttribute('data-theme');
             setTheme(current === 'light' ? 'dark' : 'light');
         });
-        const savedTheme = localStorage.getItem('theme');
+                const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'light') setTheme('light');
         else setTheme('dark');
-        // ─────────────────────────────────────
+
+// ─────────────────────────────────────
+// ─────────────────────────────────────
 // Helper to send temperature unit selection to the ESP32
 // ─────────────────────────────────────
 function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
@@ -1790,8 +1816,8 @@ function sendUnitToEsp32(unitType) { // unitType = 'C' or 'F'
             }
         });
     }
-} // <--- THIS CLOSING BRACE WAS MISSING
-
+}
+// ===== THERMAL MAPPING ENGINE
 // ===== THERMAL MAPPING ENGINE – REAL ESP32 DATA ONLY =====
 const mapState = {
     grid: Array(64).fill(25),
@@ -1902,7 +1928,6 @@ function generateHeatDistribution(baseTemp) {
     });
 }
 
-// --- Load real sensor data into the map ---
 // --- Load real sensor data into the map (Generates/Updates Thermal Map) ---
 function loadSensorToMap(sensorKey) {
     const sd = sensorsData[sensorKey];
@@ -2265,36 +2290,96 @@ function startDataWatchdog() {
         renderTableLog();
         updateLimitInputForActiveSensor();
 
-      // ─────────────────────────────────────
-        // LOADING SCREEN & REAL-TIME HISTORY
-        // ─────────────────────────────────────
-        window.addEventListener('DOMContentLoaded', () => {
-            // 1. Handle the loading screen animation
-            setTimeout(() => {
-                const ls = document.getElementById('loading-screen');
-                if (ls) ls.classList.add('fade-out');
-            }, 3000);
+     // ─────────────────────────────────────
+// REAL-TIME EVENT LOGGING & RENDERING FIX
+// ─────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+    // 1. Handle loading screen transition
+    setTimeout(() => {
+        const ls = document.getElementById('loading-screen');
+        if (ls) ls.classList.add('fade-out');
+    }, 3000);
 
-            // 2. Initialize the Firebase real-time history listener here
-            const historyRef = ref(db, 'eventHistory');
-            
-            onValue(historyRef, (snapshot) => {
-                const data = snapshot.val();
-                if (!data) {
-                    globalEventHistory = [];
-                    renderEventLogUI();
-                    return;
-                }
+    // 2. Initialize Firebase real-time event history listener
+    // ─────────────────────────────────────
+// 2. Initialize Firebase real-time event history listener
+// ─────────────────────────────────────
+const historyRef = ref(database, 'eventHistory');
 
-                // Convert Firebase object map to array and sort newest first
-                const entries = Object.values(data);
-                entries.sort((a, b) => b.timestamp - a.timestamp);
+onValue(historyRef, (snapshot) => {
+    const data = snapshot.val();
+    if (!data) {
+        globalEventHistory.length = 0;
+        renderHistoryLog(); // Ensure this matches your actual function name
+        return;
+    }
 
-                // Update global data and refresh table UI
-                globalEventHistory = entries;
-                renderEventLogUI(); 
-            });
-        });
+    // Convert Firebase object map to array and sort newest first
+    const entries = Object.values(data);
+    entries.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    // Check if the length or latest entry changed to avoid unnecessary DOM redraws
+    const isDifferent = entries.length !== globalEventHistory.length || 
+                        (entries.length > 0 && globalEventHistory.length > 0 && entries[0].timestamp !== globalEventHistory[0].timestamp);
+
+    if (isDifferent) {
+        // Update global history state cleanly
+        globalEventHistory.length = 0;
+        globalEventHistory.push(...entries);
+        
+        // Refresh table log UI
+        renderHistoryLog(); 
+    }
+});
+
+// FAST BULK & INITIAL RENDER
+function renderTableLog() {
+    if (!$telemetryLogBody) return;
+    $telemetryLogBody.innerHTML = globalEventHistory.slice(0, 100).map(item => {
+        const isAlarmClass = item.isAlarm || item.status === 'ALARM DETECTED' ? ' class="row-alarm"' : '';
+        return `<tr${isAlarmClass}>
+            <td>${formatHistoryTime(item)}</td>
+            <td>${item.roomName || '--'}</td>
+            <td>${item.sensorName || '--'}</td>
+            <td><strong>${item.event || 'STATUS_CHANGE'}</strong></td>
+            <td>${formatTemp(item.temp)}</td>
+            <td>${item.status}</td>
+        </tr>`;
+    }).join('');
+}
+
+// FAST DOM PREPEND FOR LIVE EVENTS
+function appendLogEntryToTable(item) {
+    if (!$telemetryLogBody) return;
+
+    const row = document.createElement('tr');
+    if (item.isAlarm || item.status === 'ALARM DETECTED') {
+        row.className = 'row-alarm';
+    }
+
+    row.innerHTML = `
+        <td>${formatHistoryTime(item)}</td>
+        <td>${item.roomName || '--'}</td>
+        <td>${item.sensorName || '--'}</td>
+        <td><strong>${item.event || 'STATUS_CHANGE'}</strong></td>
+        <td>${formatTemp(item.temp)}</td>
+        <td>${item.status}</td>
+    `;
+
+    $telemetryLogBody.prepend(row);
+
+    // Keep DOM clean by capping rows at 100 entries
+    while ($telemetryLogBody.children.length > 100) {
+        $telemetryLogBody.removeChild($telemetryLogBody.lastElementChild);
+    }
+}
+
+function formatHistoryTime(entry) {
+    if (entry && entry.timestamp) {
+        return new Date(entry.timestamp).toLocaleTimeString('en-US', { hour12: true });
+    }
+    return entry && entry.time ? entry.time : '--:--:--';
+}
 function renderEventLogUI() {
     const logTableBody = document.getElementById('eventLogTableBody'); // Match your HTML ID
     if (!logTableBody) return;
@@ -2325,12 +2410,10 @@ function logNewEvent(roomId, roomName, sensorId, sensorName, status, temp) {
         temp: temp,
         status: status,
         isAlarm: status === 'CRITICAL'
-    };
-
-    // Push to Firebase — the 'onValue' listener from Step 3 will catch this automatically
-    const historyRef = ref(db, 'eventHistory');
+        };
     push(historyRef, eventEntry);
-}
+}                          // ← closing brace of logNewEvent function
+});                        // ← ADD THIS LINE to close window.addEventListener
         // ─────────────────────────────────────
         // AUTH SCREEN LOGIC (before Firebase)
         // ─────────────────────────────────────
@@ -2520,35 +2603,6 @@ function logNewEvent(roomId, roomName, sensorId, sensorName, status, temp) {
             }
         };
 
-        // ── LISTEN TO EVENT HISTORY ──
-        const historyRef = ref(database, 'eventHistory');
-        onValue(historyRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                const entries = Object.entries(data)
-                    .map(([id, value]) => ({
-                        id,
-                        ...(value || {}),
-                        timestamp: value?.timestamp || Date.now(),
-                        time: value?.time || new Date(value?.timestamp || Date.now()).toLocaleTimeString(undefined, { hour12: true })
-                    }))
-                    .filter(e => e && typeof e === 'object')
-                    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-                // Merge into globalEventHistory (deduplicate by timestamp+roomId+sensorId)
-                const existingKeys = new Set(globalEventHistory.map(e =>
-                    `${e.timestamp}_${e.roomId}_${e.sensorId}`));
-                entries.forEach(entry => {
-                    const key = `${entry.timestamp}_${entry.roomId}_${entry.sensorId}`;
-                    if (!existingKeys.has(key)) {
-                        globalEventHistory.push(entry);
-                        existingKeys.add(key);
-                    }
-                });
-                globalEventHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-                if (globalEventHistory.length > 500) globalEventHistory.length = 500;
-                renderTableLog();
-            }
-        });
 function updateSensorCardUI(roomId, sensorId, temp, status) {
     const card = document.querySelector(`.sensor-mini-card[data-sensor="${sensorId}"][data-room="${roomId}"]`);
     if (!card) return;
