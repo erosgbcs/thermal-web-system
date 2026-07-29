@@ -1287,7 +1287,16 @@
             if (isCelsius) return val;
             return (val * 9 / 5) + 32;
         }
-
+        function formatLogTime(timestamp) {
+    const date = new Date(timestamp);
+    // Ensures 12-hour format with AM/PM matching your UI design
+    return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+    });
+}
          // ─────────────────────────────────────
         // AUDIO ALARM (Pure JS Web Audio API)
         // ─────────────────────────────────────
@@ -1574,6 +1583,29 @@ function evaluateMetrics(roomId, sensorId, newTemp) {
             window.publishEventHistoryToDatabase(eventEntry);
         }
     }
+    function renderHistoryLog() {
+    const $tbody = document.getElementById('historyLogBody'); // adjust selector to match your table container
+    if (!$tbody) return;
+
+    if (!mapState.history || mapState.history.length === 0) {
+        $tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#888;">No history events recorded yet.</td></tr>`;
+        return;
+    }
+
+    $tbody.innerHTML = mapState.history.map(item => {
+        const isAlarm = item.status === 'ALARM_DETECTED' || item.event === 'ALARM';
+        return `
+            <tr style="${isAlarm ? 'background-color: rgba(255, 0, 0, 0.08); color: #a00;' : ''}">
+                <td>${formatLogTime(item.timestamp)}</td>
+                <td>${item.room}</td>
+                <td>${item.sensor}</td>
+                <td><strong>${item.event}</strong></td>
+                <td>${item.peak}</td>
+                <td>${item.status}</td>
+            </tr>
+        `;
+    }).join('');
+}
 
     // THROTTLED FIREBASE WRITE: Max 1 update per 2000ms per sensor
     const nowTime = Date.now();
@@ -1807,29 +1839,33 @@ function renderThermalGrid() {
     }
     $mapGrid.innerHTML = mapState.grid.map((temp, i) => {
         const color = getHeatColor(temp);
-        return `<div style="background:${color}; aspect-ratio:1/1; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:700; color:#fff; text-shadow:0 0 4px rgba(0,0,0,0.7);">${temp.toFixed(1)}°</div>`;
+        return `<div style="background:${color}; aspect-ratio:1/1; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:700; color:#fff; text-shadow:0 0 4px rgba(0,0,0,0.7);">${isCelsius ? temp.toFixed(1) + '°' : ((temp * 9/5) + 32).toFixed(1) + '°'}</div>`;
     }).join('');
     updateMapStats();
 }
 
 // --- Update map statistics ---
 function updateMapStats() {
-    const data = mapState.grid.filter(v => !isNaN(v) && v > 0.1);
-    if (!data.length) {
-        $mapAvgTemp.textContent = '--';
-        $mapMaxTemp.textContent = '--';
-        $mapMinTemp.textContent = '--';
-        $mapHotspots.textContent = '0';
-        return;
-    }
-    const avg = data.reduce((a, b) => a + b, 0) / data.length;
-    const max = Math.max(...data);
-    const min = Math.min(...data);
-    const hotspots = data.filter(v => v >= 50).length;
-    $mapAvgTemp.textContent = avg.toFixed(1) + '°C';
-    $mapMaxTemp.textContent = max.toFixed(1) + '°C';
-    $mapMinTemp.textContent = min.toFixed(1) + '°C';
-    $mapHotspots.textContent = hotspots;
+    if (!mapState.grid || mapState.grid.length === 0) return;
+    
+    // Filter out invalid/empty values if needed
+    const validValues = mapState.grid.filter(v => !isNaN(v));
+    if (validValues.length === 0) return;
+
+    const avg = validValues.reduce((a, b) => a + b, 0) / validValues.length;
+    const max = Math.max(...validValues);
+    const min = Math.min(...validValues);
+
+    // Apply unit formatting check (assuming 'isCelsius' is your global state toggle)
+    const formatValue = (val) => {
+        const converted = isCelsius ? val : (val * 9/5) + 32;
+        return `${converted.toFixed(1)}°${isCelsius ? 'C' : 'F'}`;
+    };
+
+    // Update DOM elements
+    document.getElementById('mapAvgTemp').textContent = formatValue(avg);
+    document.getElementById('mapMaxTemp').textContent = formatValue(max);
+    document.getElementById('mapMinTemp').textContent = formatValue(min);
 }
 
 // --- Populate sensor dropdown ---
@@ -2143,34 +2179,41 @@ function startDataWatchdog() {
                 });
 
                 socket.addEventListener('message', (event) => {
-                    lastDataReceivedTime = Date.now(); // 
-                    try {
-                        const payload = JSON.parse(event.data);
+    lastDataReceivedTime = Date.now(); 
+    try {
+        const payload = JSON.parse(event.data);
 
-                        if (payload.safeLimit !== undefined) {
-                            const syncedLimit = parseFloat(payload.safeLimit);
-                            if (!isNaN(syncedLimit)) {
-                                const activeSensor = getActiveSensorData();
-                                if (activeSensor) {
-                                    activeSensor.safeLimit = syncedLimit;
-                                }
-                                $limitInput.value = fromCelsius(syncedLimit).toFixed(1);
-                                console.log(`[ESP32 #${index + 1}] Received synced threshold from ESP32: ${syncedLimit}°C`);
-                            }
-                        }
+        if (payload.safeLimit !== undefined) {
+            const syncedLimit = parseFloat(payload.safeLimit);
+            if (!isNaN(syncedLimit)) {
+                const activeSensor = getActiveSensorData();
+                if (activeSensor) {
+                    activeSensor.safeLimit = syncedLimit;
+                }
+                $limitInput.value = fromCelsius(syncedLimit).toFixed(1);
+                console.log(`[ESP32 #${index + 1}] Received synced threshold from ESP32: ${syncedLimit}°C`);
+            }
+        }
 
-                        if (payload.temperature !== undefined) {
-                            const numericTemp = parseFloat(payload.temperature);
-                            if (!isNaN(numericTemp)) {
-                                const rId = payload.roomId || activeRoomId;
-                                const sId = payload.sensorId || activeSensorId;
-                                evaluateMetrics(rId, sId, numericTemp);
-                            }
-                        }
-                    } catch (e) {
-                        console.error('Invalid ESP32 payload:', e);
-                    }
-                });
+        if (payload.temperature !== undefined) {
+            let numericTemp = parseFloat(payload.temperature);
+            if (!isNaN(numericTemp)) {
+                
+                // --- BUG FIX: Convert incoming Fahrenheit back to Celsius ---
+                if (!isCelsius) {
+                    numericTemp = (numericTemp - 32) * 5 / 9;
+                }
+                // ------------------------------------------------------------
+                
+                const rId = payload.roomId || activeRoomId;
+                const sId = payload.sensorId || activeSensorId;
+                evaluateMetrics(rId, sId, numericTemp);
+            }
+        }
+    } catch (e) {
+        console.error('Invalid ESP32 payload:', e);
+    }
+});
 
                 socket.addEventListener('close', () => {
     esp32Connections[index] = false;
@@ -2222,16 +2265,72 @@ function startDataWatchdog() {
         renderTableLog();
         updateLimitInputForActiveSensor();
 
-        // ─────────────────────────────────────
-        // LOADING SCREEN
+      // ─────────────────────────────────────
+        // LOADING SCREEN & REAL-TIME HISTORY
         // ─────────────────────────────────────
         window.addEventListener('DOMContentLoaded', () => {
+            // 1. Handle the loading screen animation
             setTimeout(() => {
                 const ls = document.getElementById('loading-screen');
                 if (ls) ls.classList.add('fade-out');
             }, 3000);
-        });
 
+            // 2. Initialize the Firebase real-time history listener here
+            const historyRef = ref(db, 'eventHistory');
+            
+            onValue(historyRef, (snapshot) => {
+                const data = snapshot.val();
+                if (!data) {
+                    globalEventHistory = [];
+                    renderEventLogUI();
+                    return;
+                }
+
+                // Convert Firebase object map to array and sort newest first
+                const entries = Object.values(data);
+                entries.sort((a, b) => b.timestamp - a.timestamp);
+
+                // Update global data and refresh table UI
+                globalEventHistory = entries;
+                renderEventLogUI(); 
+            });
+        });
+function renderEventLogUI() {
+    const logTableBody = document.getElementById('eventLogTableBody'); // Match your HTML ID
+    if (!logTableBody) return;
+
+    logTableBody.innerHTML = ''; // Clear existing rows
+
+    globalEventHistory.forEach(entry => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${entry.time || new Date(entry.timestamp).toLocaleTimeString()}</td>
+            <td>${entry.roomName || entry.roomId}</td>
+            <td>${entry.sensorName || entry.sensorId}</td>
+            <td><span class="badge ${entry.isAlarm ? 'bg-danger' : 'bg-warning'}">${entry.status}</span></td>
+        `;
+        logTableBody.appendChild(row);
+    });
+}
+
+function logNewEvent(roomId, roomName, sensorId, sensorName, status, temp) {
+    const nowTime = Date.now();
+    const eventEntry = {
+        timestamp: nowTime,
+        time: new Date(nowTime).toLocaleTimeString(undefined, { hour12: true }),
+        roomId: roomId,
+        roomName: roomName,
+        sensorId: sensorId,
+        sensorName: sensorName,
+        temp: temp,
+        status: status,
+        isAlarm: status === 'CRITICAL'
+    };
+
+    // Push to Firebase — the 'onValue' listener from Step 3 will catch this automatically
+    const historyRef = ref(db, 'eventHistory');
+    push(historyRef, eventEntry);
+}
         // ─────────────────────────────────────
         // AUTH SCREEN LOGIC (before Firebase)
         // ─────────────────────────────────────
