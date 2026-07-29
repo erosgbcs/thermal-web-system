@@ -73,7 +73,17 @@
         flex-direction: column;
         align-items: center;
       }
-
+      /* Progress counter */
+.progress-counter {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-top: 0.5rem;
+  display: block;
+  text-align: center;
+  opacity: 0;
+  animation: fadeSlideUp 0.8s ease-out 0.7s both;
+}
       /* ── ENHANCED LOADING SCREEN ── */
       #loading-screen {
         position: fixed;
@@ -1315,7 +1325,7 @@
         <div class="progress-bar-container">
           <div class="progress-bar-fill"></div>
         </div>
-
+        <span class="progress-counter" id="progressCounter">0%</span>
         <!-- Loading Status -->
         <div class="loading-status">
           <span>Initializing System</span>
@@ -2231,7 +2241,21 @@
         renderSensorCards();
         renderTableLog();
       }
-
+// Animate progress counter from 0 to 100 over 3 seconds
+const counter = document.getElementById("progressCounter");
+if (counter) {
+  let startTime = Date.now();
+  const duration = 3000; // same as progress bar fill
+  function updateCounter() {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(100, Math.floor((elapsed / duration) * 100));
+    counter.textContent = progress + "%";
+    if (progress < 100) {
+      requestAnimationFrame(updateCounter);
+    }
+  }
+  requestAnimationFrame(updateCounter);
+}
       // ─────────────────────────────────────
       // EVALUATE METRICS (called on new temp)
       // ─────────────────────────────────────
