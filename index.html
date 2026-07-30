@@ -2,7 +2,10 @@
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>ThermE.Y.E. - Appliances Thermal Monitoring System</title>
     <style>
       :root {
@@ -1367,103 +1370,50 @@
         color: var(--text-main);
         margin: 0;
       }
-      /* Print styles – show only the thermal map */
+      /* ── PRINT MODES ── */
       @media print {
-        /* Hide everything except the thermal mapping page */
-        #loading-screen,
-        #auth-screen,
-        .header-controls:not(.thermal-print-header),
-        .sensor-cards-grid,
-        .dashboard,
-        .stats-grid,
-        .alert-banner,
-        .log-card:not(.thermal-log-card),
-        .action-buttons .theme-btn:not(#printMapBtn) {
-          display: none !important;
+        /* Default: hide everything */
+        body * {
+          visibility: hidden;
         }
-
-        /* Show the thermal mapping container */
-        #thermalMappingPage {
-          display: block !important;
-          max-width: 100% !important;
-          padding: 1rem !important;
+        body.print-log-mode .log-card,
+        body.print-log-mode .log-card * {
+          visibility: visible;
         }
-
-        /* Ensure colours print */
-        #thermalGridContainer div {
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
+        body.print-map-mode #thermalMappingPage,
+        body.print-map-mode #thermalMappingPage * {
+          visibility: visible;
         }
-
-        /* Make the log table fit */
-        .log-table-wrapper {
-          max-height: none !important;
-          overflow: visible !important;
-        }
-
-        /* Keep page breaks tidy */
-        .card {
-          page-break-inside: avoid;
-        }
-      }
-      /* ── PRINT STYLES ── */
-      @media print {
-        body {
+        /* Show the containers themselves */
+        body.print-log-mode .log-card {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          padding: 1rem;
           background: #fff !important;
-          color: #000 !important;
-          padding: 0 !important;
-        }
-        #loading-screen,
-        #auth-screen,
-        .header-controls,
-        .sensor-cards-grid,
-        .dashboard .hero-card,
-        .dashboard .sidebar,
-        .stats-grid,
-        .alert-banner,
-        .log-action-btns,
-        .action-buttons,
-        #alertBanner {
-          display: none !important;
-        }
-        #dashboard-container {
-          display: block !important;
-          max-width: 100% !important;
-        }
-        .dashboard {
-          display: block !important;
-        }
-        .log-card {
           border: none !important;
           box-shadow: none !important;
-          padding: 0 !important;
+        }
+        body.print-map-mode #thermalMappingPage {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          padding: 1rem;
           background: #fff !important;
         }
-        .log-table-wrapper {
-          max-height: none !important;
-          overflow: visible !important;
-          border: 1px solid #ccc !important;
-        }
-        .log-table th {
+        /* Optional: improve table readability */
+        body.print-log-mode .log-table th {
           background: #f0f0f0 !important;
           color: #000 !important;
-          border-bottom: 2px solid #000 !important;
         }
-        .log-table td {
+        body.print-log-mode .log-table td {
           color: #000 !important;
-          border-bottom: 1px solid #ccc !important;
         }
-        .log-table tr.row-alarm {
-          background-color: #fff0f0 !important;
-          color: #900 !important;
-        }
-        .log-table tr.row-alarm td {
-          color: #900 !important;
-        }
-        .log-card h3 {
-          color: #000 !important;
-          margin-bottom: 0.75rem !important;
-          font-size: 1.3rem !important;
+        body.print-log-mode .row-alarm td {
+          background: #ffe4e6 !important;
+          color: #9f1239 !important;
         }
       }
 
@@ -2357,16 +2307,14 @@
           });
 
         // NEW: Edit button event listeners
-        $sensorCardsGrid
-          .querySelectorAll(".edit-sensor-btn")
-          .forEach((btn) => {
-            btn.addEventListener("click", (e) => {
-              e.stopPropagation(); // Prevent card selection
-              const roomId = btn.getAttribute("data-room");
-              const sensorId = btn.getAttribute("data-sensor");
-              editSensorName(roomId, sensorId);
-            });
+        $sensorCardsGrid.querySelectorAll(".edit-sensor-btn").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation(); // Prevent card selection
+            const roomId = btn.getAttribute("data-room");
+            const sensorId = btn.getAttribute("data-sensor");
+            editSensorName(roomId, sensorId);
           });
+        });
       }
       function editSensorName(roomId, sensorId) {
         const key = `${roomId}_${sensorId}`;
@@ -2680,13 +2628,6 @@
           })
           .join("");
       }
-
-      // ─────────────────────────────────────
-      // PRINT & EXPORT
-      // ─────────────────────────────────────
-      document.getElementById("printLogBtn").addEventListener("click", () => {
-        window.print();
-      });
 
       document.getElementById("exportCsvBtn").addEventListener("click", () => {
         const entries = globalEventHistory.slice(0, 200);
@@ -3330,9 +3271,23 @@
       renderTableLog();
       updateLimitInputForActiveSensor();
       // Event listener for the print button
-      document.getElementById("printMapBtn")?.addEventListener("click", () => {
-        window.print();
-      });
+      // Print Log – show only the log table
+      document
+        .getElementById("printLogBtn")
+        ?.addEventListener("click", function () {
+          document.body.classList.add("print-log-mode");
+          window.print();
+          document.body.classList.remove("print-log-mode");
+        });
+
+      // Print Map – show only the thermal map
+      document
+        .getElementById("printMapBtn")
+        ?.addEventListener("click", function () {
+          document.body.classList.add("print-map-mode");
+          window.print();
+          document.body.classList.remove("print-map-mode");
+        });
       // ── FADE OUT LOADING SCREEN AFTER 3 SECONDS ──
       setTimeout(() => {
         const ls = document.getElementById("loading-screen");
