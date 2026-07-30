@@ -1402,6 +1402,13 @@
           width: 100%;
           padding: 1rem;
           background: #fff !important;
+          /* Print thermal grid colors */
+          #thermalGridContainer,
+          #thermalGridContainer * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
         }
         /* Optional: improve table readability */
         body.print-log-mode .log-table th {
