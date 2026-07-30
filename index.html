@@ -41,7 +41,10 @@
         --input-bg: #f1f5f9;
         --overlay-bg: rgba(248, 250, 252, 0.94);
       }
-
+      html {
+        overflow-y: scroll; /* forces scrollbar to prevent layout shift */
+        height: 100%; /* ensures full viewport coverage */
+      }
       * {
         box-sizing: border-box;
         margin: 0;
@@ -66,8 +69,10 @@
       body {
         background-color: var(--bg-base);
         color: var(--text-main);
+        margin: 0;
         padding: 0;
         min-height: 100vh;
+        height: 100%; /* added – ensures body fills viewport */
         display: flex;
         flex-direction: column;
         align-items: center;
