@@ -83,7 +83,7 @@
         opacity: 0;
         animation: fadeSlideUp 0.8s ease-out 0.7s both;
       }
-      /* ── ENHANCED LOADING SCREEN ── */      /* ── ENHANCED LOADING SCREEN ── */
+      /* ── ENHANCED LOADING SCREEN ── */ /* ── ENHANCED LOADING SCREEN ── */
       #loading-screen {
         position: fixed;
         top: 0;
@@ -103,7 +103,7 @@
         align-items: center;
         justify-content: center;
         text-align: center;
-        padding: 2 1.5  rem;
+        padding: 2rem 1.5rem;
         opacity: 1;
         transition:
           opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1),
@@ -861,6 +861,7 @@
       /* ── DASHBOARD (hidden until auth) ── */
       #dashboard-container {
         width: 100%;
+        padding: 2rem 1.5rem;
         max-width: 1300px;
         display: none;
         flex-direction: column;
@@ -2506,7 +2507,7 @@
             updateSensorCardUI(roomId, sensorId, newTemp, sd.status);
           }
         }
-                // ---- Auto‑update thermal map if it's currently visible ----
+        // ---- Auto‑update thermal map if it's currently visible ----
         const mapPage = document.getElementById("thermalMappingPage");
         const sensorKey = `${roomId}_${sensorId}`;
         if (
@@ -2520,7 +2521,7 @@
           }
         }
       }
-      
+
       function appendLogEntryToTable(item) {
         if (!$telemetryLogBody) return;
 
@@ -3172,7 +3173,6 @@
                   const rId = payload.roomId || activeRoomId;
                   const sId = payload.sensorId || activeSensorId;
                   evaluateMetrics(rId, sId, numericTemp);
-                  
                 }
               }
             } catch (e) {
