@@ -91,10 +91,7 @@
       /* ── ENHANCED LOADING SCREEN ── */ /* ── ENHANCED LOADING SCREEN ── */
       #loading-screen {
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        inset: 0; /* covers viewport exactly, no size issues */
         background: linear-gradient(
           135deg,
           #0a0f1e 0%,
@@ -113,10 +110,37 @@
         transition:
           opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1),
           visibility 0.8s;
-        overflow-x: hidden;
+        overflow: hidden; /* prevents any content from spilling out */
         -webkit-overflow-scrolling: touch;
       }
+      @media (max-width: 600px) {
+        /* ... existing rules ... */
 
+        /* Prevent loading screen content from overflowing */
+        .loader-project {
+          font-size: 2.5rem !important; /* reduce from 3.8rem */
+        }
+        .loader-logo-school {
+          width: 70px !important;
+          height: 70px !important;
+        }
+        .loader-logo {
+          width: 100px !important;
+          height: 100px !important;
+        }
+        .loader-logos {
+          gap: 1rem !important;
+        }
+        .loader-school {
+          font-size: 0.8rem !important;
+        }
+        .loader-tagline {
+          font-size: 0.9rem !important;
+        }
+        .progress-bar-container {
+          width: 90% !important;
+        }
+      }
       /* Animated background particles */
       #loading-screen::before {
         content: "";
