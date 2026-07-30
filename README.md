@@ -1,4 +1,3 @@
-# ```markdown
 # ThermE.Y.E. – Appliances Thermal Monitoring System
 
 A real‑time web dashboard for monitoring appliance temperatures using AMG8833 thermal sensors, ESP32 microcontrollers, and Firebase.  
@@ -111,7 +110,7 @@ Note: The entire application is self‑contained in a single HTML file for simpl
 
 ---
 
-👥 Developers
+👥 Sponsored by;
 
 · Giero E. Delos Santos
 · Gabriel P. Morallos
