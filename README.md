@@ -98,13 +98,13 @@ The mapping page renders an 8×8 grid that simulates an AMG8833 heat distributio
 
 📁 Project Structure
 
-```
+
 thermal-web-system/
 ├── index.html          # Main dashboard (all HTML, CSS, JS inline)
 ├── thermeye_logo.png   # App logo
 ├── ffhnas_logo.png     # School logo
 └── README.md           # This file
-```
+
 
 Note: The entire application is self‑contained in a single HTML file for simplicity.
 
