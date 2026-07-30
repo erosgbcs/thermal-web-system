@@ -2,7 +2,10 @@
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>ThermE.Y.E. - Appliances Thermal Monitoring System</title>
     <style>
       :root {
@@ -2357,16 +2360,14 @@
           });
 
         // NEW: Edit button event listeners
-        $sensorCardsGrid
-          .querySelectorAll(".edit-sensor-btn")
-          .forEach((btn) => {
-            btn.addEventListener("click", (e) => {
-              e.stopPropagation(); // Prevent card selection
-              const roomId = btn.getAttribute("data-room");
-              const sensorId = btn.getAttribute("data-sensor");
-              editSensorName(roomId, sensorId);
-            });
+        $sensorCardsGrid.querySelectorAll(".edit-sensor-btn").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation(); // Prevent card selection
+            const roomId = btn.getAttribute("data-room");
+            const sensorId = btn.getAttribute("data-sensor");
+            editSensorName(roomId, sensorId);
           });
+        });
       }
       function editSensorName(roomId, sensorId) {
         const key = `${roomId}_${sensorId}`;
