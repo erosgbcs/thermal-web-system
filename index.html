@@ -45,7 +45,6 @@
       * {
         box-sizing: border-box;
         margin: 0;
-        padding: 0;
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
           Arial, sans-serif;
@@ -67,7 +66,7 @@
       body {
         background-color: var(--bg-base);
         color: var(--text-main);
-        padding: 2rem 1.5rem;
+        padding: 0;
         min-height: 100vh;
         display: flex;
         flex-direction: column;
@@ -84,8 +83,7 @@
         opacity: 0;
         animation: fadeSlideUp 0.8s ease-out 0.7s both;
       }
-      /* ── ENHANCED LOADING SCREEN ── */
-      /* ── ENHANCED LOADING SCREEN ── */
+      /* ── ENHANCED LOADING SCREEN ── */      /* ── ENHANCED LOADING SCREEN ── */
       #loading-screen {
         position: fixed;
         top: 0;
@@ -105,12 +103,12 @@
         align-items: center;
         justify-content: center;
         text-align: center;
-        padding: 2rem;
+        padding: 2 1.5  rem;
         opacity: 1;
         transition:
           opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1),
           visibility 0.8s;
-        overflow-y: auto;
+        overflow-y: scroll;
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
       }
