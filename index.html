@@ -2336,21 +2336,42 @@
         );
         if (newName && newName.trim() !== "") {
           const trimmed = newName.trim();
+          
           // Update local data
           sd.sensorName = trimmed;
+          
           // Also update the sensor object in DEFAULT_ROOMS (for future renders)
           const room = DEFAULT_ROOMS.find((r) => r.id === roomId);
           if (room) {
             const sensor = room.sensors.find((s) => s.id === sensorId);
             if (sensor) sensor.name = trimmed;
           }
+          
           // Persist to Firebase
           if (typeof window.publishSensorNameToDatabase === "function") {
             window.publishSensorNameToDatabase(roomId, sensorId, trimmed);
           }
+
+          // ---------------------------------------------------------
+          // --- NEW: Sync updated sensor name to ESP32 (for OLED) ---
+          // ---------------------------------------------------------
+          if (typeof esp32Sockets !== "undefined" && Array.isArray(esp32Sockets)) {
+            esp32Sockets.forEach((socket) => {
+              if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ 
+                  type: "updateSensorName",
+                  sensorId: sensorId, 
+                  sensorName: trimmed 
+                }));
+              }
+            });
+          }
+          // ---------------------------------------------------------
+
           // Re-render UI
           renderSensorCards();
           refreshHeroDisplay();
+          
           // Update thermal map dropdown if it's open
           const mapPage = document.getElementById("thermalMappingPage");
           if (mapPage && mapPage.style.display !== "none") {
