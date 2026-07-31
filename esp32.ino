@@ -13,7 +13,7 @@ const char* WIFI_SSID = "AGSAMOSAM";
 const char* WIFI_PASS = "G5CMgUD6";
 
 // SIM800L Configuration
-const char* SMS_TARGET = "+639xxxxxxxxx"; // <--- CHANGE THIS TO YOUR PHONE NUMBER
+const char* SMS_TARGET = "+639xxxxxxxxx";  // <--- CHANGE THIS TO YOUR PHONE NUMBER
 const int SIM800_RX = 16;
 const int SIM800_TX = 17;
 HardwareSerial sim800(2);
@@ -24,15 +24,15 @@ unsigned long lastSmsTime = 0;
 const unsigned long SMS_COOLDOWN_MS = 60000;
 
 // Hardware Pin Configuration
-const int RED_LED_PIN   = 23;
+const int RED_LED_PIN = 23;
 const int GREEN_LED_PIN = 19;
-const int BUZZER_PIN    = 18;
-const int BUTTON_PIN    = 32; // <--- Push Button Pin (GPIO 32 to GND)
+const int BUZZER_PIN = 18;
+const int BUTTON_PIN = 32;  // <--- Push Button Pin (GPIO 32 to GND)
 
 // Button & Alarm variables
 unsigned long buttonPressTime = 0;
 bool buttonPressed = false;
-bool alarmMuted = false; 
+bool alarmMuted = false;
 
 // OLED Configuration (128x64 I2C)
 #define SCREEN_WIDTH 128
@@ -71,9 +71,9 @@ unsigned long lastSend = 0;
 unsigned long lastOLEDUpdate = 0;
 unsigned long lastSensorRead = 0;
 
-const unsigned long SENSOR_INTERVAL_MS    = 200;
+const unsigned long SENSOR_INTERVAL_MS = 200;
 const unsigned long TELEMETRY_INTERVAL_MS = 200;
-const unsigned long OLED_INTERVAL_MS      = 200;
+const unsigned long OLED_INTERVAL_MS = 200;
 
 // ==========================================
 // Function Declarations
@@ -83,7 +83,7 @@ void sendTelemetryData();
 void checkBreachStatus();
 void sendSMSAlert(float temp, String source);
 void updateOLED();
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length);
 void handleButton();
 void powerOffSystem();
 
@@ -95,11 +95,12 @@ void setup() {
 
   // Initialize Button and Deep Sleep Wakeup
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_32, 0); 
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_32, 0);
 
   prefs.begin("thermeye", false);
   sensor1Name = prefs.getString("s1_name", "AMG1");
   sensor2Name = prefs.getString("s2_name", "AMG2");
+  criticalThreshold = prefs.getFloat("threshold", 50.0);
   prefs.end();
   // Initialize I2C
   Wire.begin(21, 22);
@@ -112,26 +113,26 @@ void setup() {
   pinMode(RED_LED_PIN, OUTPUT);
   pinMode(GREEN_LED_PIN, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT);
-  
-  digitalWrite(RED_LED_PIN, LOW);
+
+  digitalWrite(RED_LED_PIN, HIGH);
   digitalWrite(GREEN_LED_PIN, HIGH);
-  digitalWrite(BUZZER_PIN, HIGH); 
+  digitalWrite(BUZZER_PIN, HIGH);
 
   // Initialize OLED
-  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println(F("OLED initialization failed (Check 0x3C address & wiring)"));
   } else {
     display.clearDisplay();
     display.setTextColor(WHITE);
     display.setTextSize(1);
     display.setCursor(20, 10);
-    
+
     if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
       display.println("System Waking Up");
     } else {
       display.println("System Booting");
     }
-    
+
     display.drawRect(14, 30, 100, 10, WHITE);
     display.display();
   }
@@ -158,10 +159,10 @@ void setup() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   Serial.print("Connecting to WiFi");
-  
+
   unsigned long startAttemptTime = millis();
   int progress = 0;
-  
+
   while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
     delay(250);
     Serial.print(".");
@@ -173,7 +174,7 @@ void setup() {
 
   display.clearDisplay();
   display.setCursor(10, 20);
-  
+
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("\nWiFi Connected!");
     display.println("WiFi Connected!");
@@ -186,7 +187,7 @@ void setup() {
     display.setCursor(10, 35);
     display.println("Starting Offline...");
   }
-  
+
   display.display();
   delay(1500);
 
@@ -199,12 +200,11 @@ void setup() {
 
 void loop() {
   webSocket.loop();
-  
+
   // Handle power/reset button logic
   handleButton();
 
   unsigned long currentMillis = millis();
-
   // 1. Read Sensors
   if (currentMillis - lastSensorRead >= SENSOR_INTERVAL_MS) {
     readAllSensors();
@@ -231,13 +231,12 @@ void loop() {
 // Button Handling Logic
 // ==========================================
 void handleButton() {
-  bool currentButtonState = (digitalRead(BUTTON_PIN) == LOW); 
+  bool currentButtonState = (digitalRead(BUTTON_PIN) == LOW);
 
   if (currentButtonState && !buttonPressed) {
     buttonPressTime = millis();
     buttonPressed = true;
-  } 
-  else if (!currentButtonState && buttonPressed) {
+  } else if (!currentButtonState && buttonPressed) {
     unsigned long pressDuration = millis() - buttonPressTime;
     buttonPressed = false;
 
@@ -248,8 +247,7 @@ void handleButton() {
         Serial.println("Alarm silenced by user.");
       }
     }
-  } 
-  else if (currentButtonState && buttonPressed) {
+  } else if (currentButtonState && buttonPressed) {
     // Long Press: Power Off
     if (millis() - buttonPressTime > 3000) {
       powerOffSystem();
@@ -262,27 +260,27 @@ void handleButton() {
 // ==========================================
 void powerOffSystem() {
   Serial.println("Powering off...");
-  
+
   display.clearDisplay();
   display.setTextColor(WHITE);
   display.setTextSize(2);
   display.setCursor(15, 25);
   display.println("POWER OFF");
   display.display();
-  
+
   digitalWrite(RED_LED_PIN, LOW);
   digitalWrite(GREEN_LED_PIN, LOW);
-  digitalWrite(BUZZER_PIN, HIGH); 
-  
+  digitalWrite(BUZZER_PIN, HIGH);
+
   delay(1500);
   display.clearDisplay();
   display.display();
 
-  while(digitalRead(BUTTON_PIN) == LOW) {
+  while (digitalRead(BUTTON_PIN) == LOW) {
     delay(10);
   }
-  
-  esp_deep_sleep_start(); 
+
+  esp_deep_sleep_start();
 }
 
 void readAllSensors() {
@@ -291,9 +289,9 @@ void readAllSensors() {
     amg1.readPixels(amgPixels1);
     amgMaxTemp1 = -999.0;
     bool allZeros = true;
-    for(int i = 0; i < 64; i++) {
-      if(amgPixels1[i] != 0.0) allZeros = false;
-      if(amgPixels1[i] > amgMaxTemp1) amgMaxTemp1 = amgPixels1[i];
+    for (int i = 0; i < 64; i++) {
+      if (amgPixels1[i] != 0.0) allZeros = false;
+      if (amgPixels1[i] > amgMaxTemp1) amgMaxTemp1 = amgPixels1[i];
     }
     if (allZeros || amgMaxTemp1 < -40.0 || amgMaxTemp1 > 80.0) {
       amgMaxTemp1 = -999.0;
@@ -309,9 +307,9 @@ void readAllSensors() {
     amg2.readPixels(amgPixels2);
     amgMaxTemp2 = -999.0;
     bool allZeros = true;
-    for(int i = 0; i < 64; i++) {
-      if(amgPixels2[i] != 0.0) allZeros = false;
-      if(amgPixels2[i] > amgMaxTemp2) amgMaxTemp2 = amgPixels2[i];
+    for (int i = 0; i < 64; i++) {
+      if (amgPixels2[i] != 0.0) allZeros = false;
+      if (amgPixels2[i] > amgMaxTemp2) amgMaxTemp2 = amgPixels2[i];
     }
     if (allZeros || amgMaxTemp2 < -40.0 || amgMaxTemp2 > 80.0) {
       amgMaxTemp2 = -999.0;
@@ -322,6 +320,8 @@ void readAllSensors() {
     amgMaxTemp2 = -999.0;
   }
 }
+
+
 
 void checkBreachStatus() {
   bool previousBreach = isBreached;
@@ -354,22 +354,22 @@ void checkBreachStatus() {
   }
 
   if (isBreached) {
+    // Alarm state: red ON, green OFF
     digitalWrite(RED_LED_PIN, HIGH);
     digitalWrite(GREEN_LED_PIN, LOW);
-    
+
     if (!alarmMuted) {
-      digitalWrite(BUZZER_PIN, LOW); 
-      
+      digitalWrite(BUZZER_PIN, LOW);
       if (!smsSent || (millis() - lastSmsTime > SMS_COOLDOWN_MS)) {
         sendSMSAlert(highestTemp, breachSource);
         smsSent = true;
         lastSmsTime = millis();
       }
     } else {
-      digitalWrite(BUZZER_PIN, HIGH); 
+      digitalWrite(BUZZER_PIN, HIGH);
     }
-
   } else {
+    // Safe state: red OFF, green ON
     digitalWrite(RED_LED_PIN, LOW);
     digitalWrite(GREEN_LED_PIN, HIGH);
     digitalWrite(BUZZER_PIN, HIGH);
@@ -384,7 +384,7 @@ void sendSMSAlert(float temp, String source) {
   sim800.print(SMS_TARGET);
   sim800.println("\"");
   delay(100);
-  
+
   sim800.print("CRITICAL ALERT! Temperature breach detected by ");
   sim800.print(source);
   sim800.print(". Reading: ");
@@ -392,28 +392,28 @@ void sendSMSAlert(float temp, String source) {
   sim800.print("C. Limit: ");
   sim800.print(criticalThreshold, 1);
   sim800.println("C.");
-  
+
   delay(100);
   sim800.write(26);
 }
 
 void sendTelemetryData() {
   if (amgMaxTemp1 != -999.0) {
-    StaticJsonDocument<1024> doc; 
+    StaticJsonDocument<1024> doc;
     doc["roomId"] = "room1";
     doc["sensorId"] = "AMG8833_1";
-    
+
     float outTemp1 = isFahrenheit ? (amgMaxTemp1 * 1.8f + 32.0f) : amgMaxTemp1;
     doc["temperature"] = (float)(round(outTemp1 * 10.0) / 10.0);
-    
+
     doc["isBreached"] = (amgMaxTemp1 >= criticalThreshold);
     doc["limit"] = criticalThreshold;
     doc["unit"] = isFahrenheit ? "F" : "C";
 
     JsonArray pixels = doc.createNestedArray("pixels");
-    for(int i = 0; i < 64; i++) {
-        float pTemp = isFahrenheit ? (amgPixels1[i] * 1.8f + 32.0f) : amgPixels1[i];
-        pixels.add((float)(round(pTemp * 10.0) / 10.0));
+    for (int i = 0; i < 64; i++) {
+      float pTemp = isFahrenheit ? (amgPixels1[i] * 1.8f + 32.0f) : amgPixels1[i];
+      pixels.add((float)(round(pTemp * 10.0) / 10.0));
     }
 
     String output;
@@ -422,21 +422,21 @@ void sendTelemetryData() {
   }
 
   if (amgMaxTemp2 != -999.0) {
-    StaticJsonDocument<1024> doc; 
+    StaticJsonDocument<1024> doc;
     doc["roomId"] = "room1";
     doc["sensorId"] = "AMG8833_2";
-    
+
     float outTemp2 = isFahrenheit ? (amgMaxTemp2 * 1.8f + 32.0f) : amgMaxTemp2;
-    doc["temperature"] = (float)(round(outTemp2 * 10.0) / 10.0); 
-    
+    doc["temperature"] = (float)(round(outTemp2 * 10.0) / 10.0);
+
     doc["isBreached"] = (amgMaxTemp2 >= criticalThreshold);
     doc["limit"] = criticalThreshold;
     doc["unit"] = isFahrenheit ? "F" : "C";
 
     JsonArray pixels = doc.createNestedArray("pixels");
-    for(int i = 0; i < 64; i++) {
-        float pTemp = isFahrenheit ? (amgPixels2[i] * 1.8f + 32.0f) : amgPixels2[i];
-        pixels.add((float)(round(pTemp * 10.0) / 10.0));
+    for (int i = 0; i < 64; i++) {
+      float pTemp = isFahrenheit ? (amgPixels2[i] * 1.8f + 32.0f) : amgPixels2[i];
+      pixels.add((float)(round(pTemp * 10.0) / 10.0));
     }
 
     String output;
@@ -475,18 +475,18 @@ void updateOLED() {
   //==========================
   // SENSOR DISPLAY
   //==========================
- // Show up to 8 characters of the sensor name, then the temperature value
+  // Show up to 8 characters of the sensor name, then the temperature value
   String disp1 = sensor1Name.length() > 8 ? sensor1Name.substring(0, 8) : sensor1Name;
   display.setCursor(2, 16);
   display.print(disp1);
-  display.setCursor(75, 16);   // moved to the right
+  display.setCursor(75, 16);  // moved to the right
   if (dAmg1 == -999.0) display.print("--");
   else display.print(dAmg1, 1);
 
   String disp2 = sensor2Name.length() > 8 ? sensor2Name.substring(0, 8) : sensor2Name;
   display.setCursor(2, 28);
   display.print(disp2);
-  display.setCursor(75, 28);   // moved to the right
+  display.setCursor(75, 28);  // moved to the right
   if (dAmg2 == -999.0) display.print("--");
   else display.print(dAmg2, 1);
 
@@ -502,7 +502,7 @@ void updateOLED() {
   display.print(u);
 
   if (isBreached) {
-    if (blink || alarmMuted) { 
+    if (blink || alarmMuted) {
       display.fillRoundRect(66, 54, 60, 10, 2, WHITE);
       display.setTextColor(BLACK);
       display.setCursor(72, 56);
@@ -522,30 +522,67 @@ void updateOLED() {
 
   display.display();
 }
-
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
   if (type == WStype_TEXT) {
     StaticJsonDocument<300> doc;
     DeserializationError error = deserializeJson(doc, payload);
-    if (!error) {
+    if (error) return;
 
-      // --- Handle sensor name update ---
-      if (doc.containsKey("type") && doc["type"] == "updateSensorName") {
-        String targetId = doc["sensorId"].as<String>();
-        String newName = doc["sensorName"].as<String>();
+    // --- Handle sensor name update ---
+    if (doc.containsKey("type") && doc["type"] == "updateSensorName") {
+      String targetId = doc["sensorId"].as<String>();
+      String newName = doc["sensorName"].as<String>();
 
-        prefs.begin("thermeye", false);
-        if (targetId == "AMG8833_1") {
-          sensor1Name = newName;
-          prefs.putString("s1_name", newName);
-        } else if (targetId == "AMG8833_2") {
-          sensor2Name = newName;
-          prefs.putString("s2_name", newName);
-        }
-        prefs.end();
+      prefs.begin("thermeye", false);
+      if (targetId == "AMG8833_1") {
+        sensor1Name = newName;
+        prefs.putString("s1_name", newName);
+      } else if (targetId == "AMG8833_2") {
+        sensor2Name = newName;
+        prefs.putString("s2_name", newName);
       }
-      
-      updateOLED();
+      prefs.end();
+      updateOLED();  // refresh OLED with new name
+      return;
+    }
+
+    // --- Handle safe limit update ---
+    if (doc.containsKey("safeLimit")) {
+      float newLimit = doc["safeLimit"].as<float>();
+      if (newLimit > 0 && newLimit < 150) {
+        criticalThreshold = newLimit;
+        Serial.printf("Threshold updated to %.1f C\n", criticalThreshold);
+        
+        prefs.begin("thermeye", false);
+        prefs.putFloat("threshold", criticalThreshold);
+        prefs.end();
+        checkBreachStatus();  // re‑evaluate immediately
+      }
+      return;
+    }
+
+    // --- Handle unit toggle ---
+    if (doc.containsKey("unit")) {
+      String unit = doc["unit"].as<String>();
+      if (unit == "F") {
+        isFahrenheit = true;
+      } else if (unit == "C") {
+        isFahrenheit = false;
+      }
+      Serial.printf("Unit set to %s\n", isFahrenheit ? "F" : "C");
+      updateOLED();  // refresh display with new unit
+      return;
+    }
+
+    // --- Handle initial connection (dashboard requests sync) ---
+    if (doc.containsKey("type") && doc["type"] == "connected") {
+      StaticJsonDocument<200> response;
+      response["safeLimit"] = criticalThreshold;
+      response["unit"] = isFahrenheit ? "F" : "C";
+      String resp;
+      serializeJson(response, resp);
+      webSocket.sendTXT(num, resp);
+      return; 
     }
   }
 }
