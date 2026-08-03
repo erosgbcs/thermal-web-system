@@ -1780,7 +1780,16 @@
       let audioCtx;
       let alarmInterval = null;
       let isAuthenticated = false;
-
+      // Resume audio context on first user interaction
+      document.addEventListener(
+        "click",
+        () => {
+          if (audioCtx && audioCtx.state === "suspended") {
+            audioCtx.resume();
+          }
+        },
+        { once: false },
+      );
       function playSystemBeep() {
         if (!audioCtx) {
           audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -2925,28 +2934,33 @@
         }
         const now = audioCtx.currentTime;
 
-        const notes = [
-          { freq: 523.25, start: 0, dur: 0.3 }, // C5
-          { freq: 659.25, start: 0.15, dur: 0.3 }, // E5
-          { freq: 783.99, start: 0.3, dur: 0.4 }, // G5
-          { freq: 1046.5, start: 0.5, dur: 0.6 }, // C6 (higher, held longer)
-        ];
-
-        notes.forEach((n) => {
+        // Helper to create a smooth tone
+        function playTone(freq, start, dur, type = "sine", gain = 0.15) {
           const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
+          const gainNode = audioCtx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, now + start);
+          gainNode.gain.setValueAtTime(0, now + start);
+          gainNode.gain.linearRampToValueAtTime(gain, now + start + 0.05);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, now + start + dur);
+          osc.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          osc.start(now + start);
+          osc.stop(now + start + dur);
+        }
 
-          osc.type = "sine";
-          osc.frequency.setValueAtTime(n.freq, now + n.start);
-          gain.gain.setValueAtTime(0, now + n.start);
-          gain.gain.linearRampToValueAtTime(0.3, now + n.start + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + n.start + n.dur);
+        // Gentle bass undertone
+        playTone(130.81, 0, 1.2, "sine", 0.1); // C3
 
-          osc.connect(gain);
-          gain.connect(audioCtx.destination);
-          osc.start(now + n.start);
-          osc.stop(now + n.start + n.dur);
-        });
+        // Main melody – slightly overlapping
+        playTone(523.25, 0.1, 0.6, "sine", 0.18); // C5
+        playTone(659.25, 0.25, 0.6, "sine", 0.18); // E5
+        playTone(783.99, 0.4, 0.7, "sine", 0.2); // G5
+        playTone(1046.5, 0.55, 0.9, "sine", 0.22); // C6
+
+        // Soft “shimmer” chord at the end
+        playTone(1318.5, 0.7, 0.8, "sine", 0.1); // E6
+        playTone(1568.0, 0.75, 0.7, "sine", 0.08); // G6
       }
       // ─────────────────────────────────────
       // AUTH SCREEN LOGIC (before Firebase)
