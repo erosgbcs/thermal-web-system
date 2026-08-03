@@ -161,6 +161,45 @@
           opacity: 1;
         }
       }
+
+     .loader-developer {
+  width: 100%;
+  text-align: center;
+  margin: 0.8rem 0 1.2rem;
+}
+.dev-label {
+  display: block;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.6rem;
+}
+.dev-columns {
+  display: flex;
+  justify-content: center;
+  gap: 2.5rem;
+  margin-bottom: 0.3rem;
+}
+.dev-col {
+  text-align: left;
+  line-height: 1.6;
+}
+.dev-name {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+.dev-center {
+  margin-top: 0.2rem;
+}
+.dev-center .dev-name {
+  font-weight: 700;
+}
+
       /* School name – tiny, muted */
       .loader-school {
         font-size: 0.75rem;
@@ -1075,7 +1114,24 @@
         <!-- Tagline -->
         <div class="loader-tagline">Appliances Thermal Monitoring System</div>
         <!-- Decorative corner elements -->
-        <div class="loader-status">Preparing your dashboard</div>
+
+        <div class="loader-developer">
+          <span class="dev-label">Developed by</span>
+          <div class="dev-columns">
+            <div class="dev-col">
+              <span class="dev-name">Giero E. Delos Santos</span>
+              <span class="dev-name">Gabriel Morallos</span>
+            </div>
+            <div class="dev-col">
+              <span class="dev-name">Romelie Ocuaman</span>
+              <span class="dev-name">Jahyra F. Salmeron</span>
+            </div>
+          </div>
+          <div class="dev-center">
+            <span class="dev-name">Jericho Valimento</span>
+          </div>
+        </div>
+
         <div
           style="
             position: absolute;
@@ -1853,36 +1909,36 @@
             const alarmClass = status === "CRITICAL" ? " alarm" : "";
 
             return `
-  <div class="sensor-mini-card${isSelected ? " selected" : ""}${alarmClass}"
-       data-sensor="${sensor.id}" data-room="${room.id}">
-    
-    <div class="sensor-mini-name">
-      ${sensor.name}
-      <button class="edit-sensor-btn"
-              data-room="${room.id}"
-              data-sensor="${sensor.id}"
-              title="Edit sensor name">
-        ✏️ Edit Name
-      </button>
+    <div class="sensor-mini-card${isSelected ? " selected" : ""}${alarmClass}"
+        data-sensor="${sensor.id}" data-room="${room.id}">
+      
+      <div class="sensor-mini-name">
+        ${sensor.name}
+        <button class="edit-sensor-btn"
+                data-room="${room.id}"
+                data-sensor="${sensor.id}"
+                title="Edit sensor name">
+          ✏️ Edit Name
+        </button>
+      </div>
+
+      <div class="sensor-mini-temp"
+          style="color:${
+            status === "CRITICAL"
+              ? "var(--danger)"
+              : status === "HIGH_HEAT"
+                ? "var(--warning)"
+                : "var(--success)"
+          }">
+        ${formatTemp(temp)}
+      </div>
+
+      <span class="sensor-mini-status ${statusClass}">
+        ${status.replace("_", " ")}
+      </span>
+
     </div>
-
-    <div class="sensor-mini-temp"
-         style="color:${
-           status === "CRITICAL"
-             ? "var(--danger)"
-             : status === "HIGH_HEAT"
-               ? "var(--warning)"
-               : "var(--success)"
-         }">
-      ${formatTemp(temp)}
-    </div>
-
-    <span class="sensor-mini-status ${statusClass}">
-      ${status.replace("_", " ")}
-    </span>
-
-  </div>
-`;
+  `;
           })
           .join("");
 
@@ -2061,7 +2117,7 @@
       const counter = document.getElementById("progressCounter");
       if (counter) {
         let startTime = Date.now();
-        const duration = 4500; // same as progress bar fill
+        const duration = 6000; // same as progress bar fill
         function updateCounter() {
           const elapsed = Date.now() - startTime;
           const progress = Math.min(
@@ -2202,13 +2258,13 @@
         }
 
         row.innerHTML = `
-        <td>${formatHistoryTime(item)}</td>
-        <td>${item.roomName || "--"}</td>
-        <td>${item.sensorName || "--"}</td>
-        <td><strong>${item.event || "STATUS_CHANGE"}</strong></td>
-        <td>${formatTemp(item.temp)}</td>
-        <td>${item.status}</td>
-    `;
+          <td>${formatHistoryTime(item)}</td>
+          <td>${item.roomName || "--"}</td>
+          <td>${item.sensorName || "--"}</td>
+          <td><strong>${item.event || "STATUS_CHANGE"}</strong></td>
+          <td>${formatTemp(item.temp)}</td>
+          <td>${item.status}</td>
+      `;
 
         $telemetryLogBody.prepend(row);
 
@@ -2241,13 +2297,13 @@
                 ? ' class="row-alarm"'
                 : "";
             return `<tr${isAlarmClass}>
-            <td>${formatHistoryTime(item)}</td>
-            <td>${item.roomName || "--"}</td>
-            <td>${item.sensorName || "--"}</td>
-            <td><strong>${item.event || "STATUS_CHANGE"}</strong></td>
-            <td>${formatTemp(item.temp)}</td>
-            <td>${item.status}</td>
-        </tr>`;
+              <td>${formatHistoryTime(item)}</td>
+              <td>${item.roomName || "--"}</td>
+              <td>${item.sensorName || "--"}</td>
+              <td><strong>${item.event || "STATUS_CHANGE"}</strong></td>
+              <td>${formatTemp(item.temp)}</td>
+              <td>${item.status}</td>
+          </tr>`;
           })
           .join("");
       }
@@ -2598,15 +2654,15 @@
           .slice(0, 30)
           .map(
             (e) => `
-        <tr>
-            <td>${e.time}</td>
-            <td>${e.sensor}</td>
-            <td>${e.avg}°C</td>
-            <td>${e.max}°C</td>
-            <td>${e.min}°C</td>
-            <td>${e.hotspots}</td>
-        </tr>
-    `,
+          <tr>
+              <td>${e.time}</td>
+              <td>${e.sensor}</td>
+              <td>${e.avg}°C</td>
+              <td>${e.max}°C</td>
+              <td>${e.min}°C</td>
+              <td>${e.hotspots}</td>
+          </tr>
+      `,
           )
           .join("");
       }
@@ -2926,7 +2982,7 @@
       setTimeout(() => {
         const ls = document.getElementById("loading-screen");
         if (ls) ls.classList.add("fade-out");
-      }, 4500);
+      }, 6000);
       // ── STARTUP SOUND (gentle ascending chime) ──
       function playStartupSound() {
         if (!audioCtx) {
