@@ -13,7 +13,7 @@ const char* WIFI_SSID = "AGSAMOSAM";
 const char* WIFI_PASS = "G5CMgUD6";
 
 // SIM800L Configuration
-const char* SMS_TARGET = "+639xxxxxxxxx";  // <--- CHANGE THIS TO YOUR PHONE NUMBER
+const char* SMS_TARGET = "+639551621325";  // <--- CHANGE THIS TO YOUR PHONE NUMBER
 const int SIM800_RX = 16;
 const int SIM800_TX = 17;
 HardwareSerial sim800(2);
@@ -21,7 +21,7 @@ HardwareSerial sim800(2);
 // SMS Tracking variables
 bool smsSent = false;
 unsigned long lastSmsTime = 0;
-const unsigned long SMS_COOLDOWN_MS = 60000;
+const unsigned long SMS_COOLDOWN_MS = 30000;
 
 // Hardware Pin Configuration
 const int RED_LED_PIN = 23;
@@ -199,6 +199,14 @@ void setup() {
 }
 
 void loop() {
+  // Print any incoming data from the SIM800L to your Serial Monitor
+  while (sim800.available()) {
+    Serial.write(sim800.read());
+  }
+  // Send any typed commands from your Serial Monitor to the SIM800L
+  while (Serial.available()) {
+    sim800.write(Serial.read());
+  }
   webSocket.loop();
 
   // Handle power/reset button logic
