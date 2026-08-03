@@ -107,7 +107,15 @@ void setup() {
   Wire.setClock(400000);
 
   // Initialize SIM800L
-  sim800.begin(9600, SERIAL_8N1, SIM800_RX, SIM800_TX);
+  // Initialize SIM800L
+  sim800.begin(115200, SERIAL_8N1, SIM800_RX, SIM800_TX);
+  delay(1000);
+  
+  // Force SIM800L to lock its baud rate to 115200
+  sim800.println("AT+IPR=115200");
+  delay(500);
+  sim800.println("ATE0"); // Turn off command echo so logs stay clean
+  delay(500);
 
   // Initialize Hardware Pins
   pinMode(RED_LED_PIN, OUTPUT);
@@ -386,13 +394,23 @@ void checkBreachStatus() {
 }
 
 void sendSMSAlert(float temp, String source) {
+  Serial.println("\n--- Triggering SMS ---");
+  
+  // 1. Set to Text Mode
   sim800.println("AT+CMGF=1");
-  delay(100);
+  delay(500); 
+  Serial.print("SIM Reply 1: ");
+  while(sim800.available()) { Serial.write(sim800.read()); }
+  
+  // 2. Define the Target Number
   sim800.print("AT+CMGS=\"");
   sim800.print(SMS_TARGET);
   sim800.println("\"");
-  delay(100);
-
+  delay(500); 
+  Serial.print("SIM Reply 2: ");
+  while(sim800.available()) { Serial.write(sim800.read()); }
+  
+  // 3. Write the Message
   sim800.print("CRITICAL ALERT! Temperature breach detected by ");
   sim800.print(source);
   sim800.print(". Reading: ");
@@ -400,11 +418,19 @@ void sendSMSAlert(float temp, String source) {
   sim800.print("C. Limit: ");
   sim800.print(criticalThreshold, 1);
   sim800.println("C.");
-
-  delay(100);
+  delay(500); 
+  
+  // 4. Send CTRL+Z to dispatch the message
   sim800.write(26);
+  
+  Serial.println("\nSMS data dispatched. Waiting 5 seconds for network...");
+  delay(5000); 
+  
+  Serial.print("SIM Final Reply: ");
+  while(sim800.available()) { Serial.write(sim800.read()); }
+  
+  Serial.println("\n--- SMS Routine Complete ---\n");
 }
-
 void sendTelemetryData() {
   if (amgMaxTemp1 != -999.0) {
     StaticJsonDocument<1024> doc;
