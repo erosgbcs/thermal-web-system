@@ -1582,9 +1582,6 @@
                 <span id="mapMinTemp">--.-°C</span>
               </div>
               <div class="status-row">
-                <span class="text-muted">Hotspots</span>
-                <span id="mapHotspots">0</span>
-              </div>
             </div>
             <div class="card" style="padding: 1.5rem">
               <h3 style="margin-bottom: 1rem; font-size: 1.1rem">
@@ -1640,7 +1637,6 @@
                   <th>Avg</th>
                   <th>Max</th>
                   <th>Min</th>
-                  <th>Hotspots</th>
                 </tr>
               </thead>
               <tbody id="mapLogBody"></tbody>
@@ -2641,7 +2637,6 @@
           avg: avg.toFixed(1),
           max: max.toFixed(1),
           min: min.toFixed(1),
-          hotspots: hotspots,
         };
         mapState.history.unshift(entry);
         if (mapState.history.length > 50) mapState.history.length = 50;
