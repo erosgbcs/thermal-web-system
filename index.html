@@ -2442,7 +2442,6 @@
       const $mapAvgTemp = document.getElementById("mapAvgTemp");
       const $mapMaxTemp = document.getElementById("mapMaxTemp");
       const $mapMinTemp = document.getElementById("mapMinTemp");
-      const $mapHotspots = document.getElementById("mapHotspots");
       const $mapLogBody = document.getElementById("mapLogBody");
       const $mapSensorSelect = document.getElementById("mapSensorSelect");
 
@@ -2476,7 +2475,6 @@
           $mapAvgTemp.textContent = "--";
           $mapMaxTemp.textContent = "--";
           $mapMinTemp.textContent = "--";
-          $mapHotspots.textContent = "0";
           return;
         }
         $mapGrid.innerHTML = mapState.grid
@@ -2630,7 +2628,6 @@
         const avg = data.reduce((a, b) => a + b, 0) / data.length;
         const max = Math.max(...data);
         const min = Math.min(...data);
-        const hotspots = data.filter((v) => v >= 50).length;
         const entry = {
           time: new Date().toLocaleTimeString(undefined, { hour12: true }),
           sensor: $mapSensorLabel.textContent.replace(/\(.*\)/, "").trim(),
@@ -2655,7 +2652,6 @@
               <td>${e.avg}°C</td>
               <td>${e.max}°C</td>
               <td>${e.min}°C</td>
-              <td>${e.hotspots}</td>
           </tr>
       `,
           )
