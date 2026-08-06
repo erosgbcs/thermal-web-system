@@ -2743,9 +2743,11 @@
           });
       })();
 
-      // Expose for use elsewhere
-      window.mapState = mapState;
-      window.loadSensorToMap = loadSensorToMap;
+// Expose for use elsewhere
+window.mapState = mapState;
+window.loadSensorToMap = loadSensorToMap;
+window.renderThermalGrid = renderThermalGrid;
+window.recordMapSnapshot = recordMapSnapshot;
       // ─────────────────────────────────────
       // ESP32 WEBSOCKET
       // ─────────────────────────────────────
@@ -2868,7 +2870,25 @@
             lastDataReceivedTime = Date.now();
             try {
               const payload = JSON.parse(event.data);
-
+// Handle full AMG8833 thermal grid (64‑pixel array from ESP32)
+if (payload.thermalGrid && Array.isArray(payload.thermalGrid) && payload.thermalGrid.length === 64) {
+    const gridData = payload.thermalGrid.map(v => parseFloat(v)).filter(v => !isNaN(v));
+    if (gridData.length === 64) {
+        // Only update if the map is visible and the sensor matches
+        const mapKey = payload.sensorId 
+            ? `${payload.roomId || activeRoomId}_${payload.sensorId}` 
+            : null;
+        if (mapKey && window.mapState.sensorId === mapKey) {
+            window.mapState.grid = gridData;
+            if (typeof window.renderThermalGrid === 'function') {
+                window.renderThermalGrid();
+            }
+            if (!window.mapState.dataStale && typeof window.recordMapSnapshot === 'function') {
+                window.recordMapSnapshot();
+            }
+        }
+    }
+}
               if (payload.safeLimit !== undefined) {
                 const syncedLimit = parseFloat(payload.safeLimit);
                 if (!isNaN(syncedLimit)) {
