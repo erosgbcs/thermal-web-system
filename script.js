@@ -482,7 +482,17 @@
       // ─────────────────────────────────────
       // EVALUATE METRICS (called on new temp)
       // ─────────────────────────────────────
-      function evaluateMetrics(roomId, sensorId, newTemp) {
+      function evaluateMetrics(
+        roomId,
+        sensorId,
+        newTemp,
+        {
+          publishTelemetry = true,
+          publishHistory = true,
+          refreshDashboard = true,
+          recordHistory = true,
+        } = {},
+      ) {
         if (!isAuthenticated || !monitoringEnabled) return;
 
         const key = `${roomId}_${sensorId}`;
@@ -522,7 +532,7 @@
 
         // ---- ALWAYS LOG AN EVENT (throttled) ----
         const now = Date.now();
-        if (!sd.lastEventTime || now - sd.lastEventTime > 2000) {
+        if (recordHistory && (!sd.lastEventTime || now - sd.lastEventTime > 2000)) {
           // throttle events to max 1 every 2s
           sd.lastEventTime = now;
 
@@ -560,14 +570,17 @@
             appendLogEntryToTable(eventEntry);
           }
 
-          if (typeof window.publishEventHistoryToDatabase === "function") {
+          if (
+            publishHistory &&
+            typeof window.publishEventHistoryToDatabase === "function"
+          ) {
             window.publishEventHistoryToDatabase(eventEntry);
           }
         }
 
         // ---- Throttled temperature write to Firebase (unchanged) ----
         const lastWrite = lastDbWriteTime.get(key) || 0;
-        if (now - lastWrite > 2000) {
+        if (publishTelemetry && now - lastWrite > 2000) {
           lastDbWriteTime.set(key, now);
           if (typeof window.publishTemperatureToDatabase === "function") {
             window.publishTemperatureToDatabase(roomId, sensorId, newTemp);
@@ -575,9 +588,9 @@
         }
 
         // ---- Refresh UI ----
-        if (roomId === activeRoomId && sensorId === activeSensorId) {
+        if (roomId === activeRoomId && sensorId === activeSensorId && refreshDashboard) {
           refreshHeroDisplay();
-        } else {
+        } else if (roomId !== activeRoomId || sensorId !== activeSensorId) {
           if (typeof updateSensorCardUI === "function") {
             updateSensorCardUI(roomId, sensorId, newTemp, sd.status);
           }
@@ -1156,6 +1169,20 @@
           }
         }
 
+        function sendSimulationToEsp32(isActive, temperature = null) {
+          esp32Sockets.forEach((socket) => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({
+                simulation: isActive,
+                sensorId: activeSensorId,
+                temperature,
+              }));
+            }
+          });
+        }
+
+        window.stopEsp32Simulation = () => sendSimulationToEsp32(false);
+
         function startRandomSimulation() {
           stopRandomSimulation();
           const generateReading = () => {
@@ -1184,9 +1211,13 @@
           }
 
           syncSimulationTemperature(temperature);
-          evaluateMetrics(activeRoomId, activeSensorId, temperature);
-          renderSensorCards();
-          refreshHeroDisplay();
+          sendSimulationToEsp32(true, temperature);
+          evaluateMetrics(activeRoomId, activeSensorId, temperature, {
+            publishTelemetry: false,
+            publishHistory: false,
+            refreshDashboard: false,
+            recordHistory: false,
+          });
           renderSimulationPreview();
 
           if (shouldBroadcast && typeof window.publishSimulationReading === "function") {
@@ -1243,9 +1274,13 @@
             return;
           }
           syncSimulationTemperature(temperature);
-          evaluateMetrics(activeRoomId, activeSensorId, temperature);
-          renderSensorCards();
-          refreshHeroDisplay();
+          sendSimulationToEsp32(true, temperature);
+          evaluateMetrics(activeRoomId, activeSensorId, temperature, {
+            publishTelemetry: false,
+            publishHistory: false,
+            refreshDashboard: false,
+            recordHistory: false,
+          });
           renderSimulationPreview();
           setSimulationConnectionStatus("Reading received from another device");
           document.getElementById("simulationStatus").textContent =
@@ -1254,6 +1289,7 @@
 
         document.getElementById("backFromSimulationBtn")?.addEventListener("click", () => {
           stopRandomSimulation();
+          window.stopEsp32Simulation();
           simulationMode = false;
           if (simulationPage) simulationPage.style.display = "none";
           setDashboardVisibility(true);
@@ -1263,6 +1299,8 @@
         // Show map page
         document.getElementById("showMapBtn")?.addEventListener("click", () => {
           simulationMode = false;
+          stopRandomSimulation();
+          window.stopEsp32Simulation();
           setDashboardVisibility(false);
           if (simulationPage) simulationPage.style.display = "none";
           if (mapPage) mapPage.style.display = "block";
@@ -1644,6 +1682,9 @@ if (payload.thermalGrid && Array.isArray(payload.thermalGrid) && payload.thermal
       function showAuthScreen() {
         isAuthenticated = false;
         monitoringEnabled = false;
+        if (typeof window.stopEsp32Simulation === "function") {
+          window.stopEsp32Simulation();
+        }
         $authScreen.classList.remove("hidden");
         $dashboardContainer.classList.remove("visible");
         stopSiren();

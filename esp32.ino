@@ -57,6 +57,9 @@ String sensor2Name = "AMG2";
 // Dynamic Critical Breach Limit (Always in Celsius)
 float criticalThreshold = 50.0;
 bool isBreached = false;
+bool simulationMode = false;
+float simulationTemp1 = -999.0;
+float simulationTemp2 = -999.0;
 
 // Unit Toggle State (Default Celsius)
 bool isFahrenheit = false;
@@ -344,23 +347,25 @@ void checkBreachStatus() {
   isBreached = false;
   float highestTemp = -999.0;
   String breachSource = "";
+  float sensorTemp1 = simulationMode ? simulationTemp1 : amgMaxTemp1;
+  float sensorTemp2 = simulationMode ? simulationTemp2 : amgMaxTemp2;
 
-  if (amgMaxTemp1 != -999.0) {
-    if (amgMaxTemp1 > highestTemp) {
-      highestTemp = amgMaxTemp1;
+  if (sensorTemp1 != -999.0) {
+    if (sensorTemp1 > highestTemp) {
+      highestTemp = sensorTemp1;
       breachSource = sensor1Name;
     }
-    if (amgMaxTemp1 >= criticalThreshold) {
+    if (sensorTemp1 >= criticalThreshold) {
       isBreached = true;
     }
   }
 
-  if (amgMaxTemp2 != -999.0) {
-    if (amgMaxTemp2 > highestTemp) {
-      highestTemp = amgMaxTemp2;
+  if (sensorTemp2 != -999.0) {
+    if (sensorTemp2 > highestTemp) {
+      highestTemp = sensorTemp2;
       breachSource = sensor2Name;
     }
-    if (amgMaxTemp2 >= criticalThreshold) {
+    if (sensorTemp2 >= criticalThreshold) {
       isBreached = true;
     }
   }
@@ -376,7 +381,7 @@ void checkBreachStatus() {
 
     if (!alarmMuted) {
       digitalWrite(BUZZER_PIN, LOW);
-      if (!smsSent || (millis() - lastSmsTime > SMS_COOLDOWN_MS)) {
+      if (!simulationMode && (!smsSent || (millis() - lastSmsTime > SMS_COOLDOWN_MS))) {
         sendSMSAlert(highestTemp, breachSource);
         smsSent = true;
         lastSmsTime = millis();
@@ -487,8 +492,10 @@ void updateOLED() {
 
   char u = isFahrenheit ? 'F' : 'C';
 
-  float dAmg1 = (amgMaxTemp1 == -999.0) ? -999.0 : (isFahrenheit ? amgMaxTemp1 * 1.8 + 32 : amgMaxTemp1);
-  float dAmg2 = (amgMaxTemp2 == -999.0) ? -999.0 : (isFahrenheit ? amgMaxTemp2 * 1.8 + 32 : amgMaxTemp2);
+  float displayTemp1 = simulationMode ? simulationTemp1 : amgMaxTemp1;
+  float displayTemp2 = simulationMode ? simulationTemp2 : amgMaxTemp2;
+  float dAmg1 = (displayTemp1 == -999.0) ? -999.0 : (isFahrenheit ? displayTemp1 * 1.8 + 32 : displayTemp1);
+  float dAmg2 = (displayTemp2 == -999.0) ? -999.0 : (isFahrenheit ? displayTemp2 * 1.8 + 32 : displayTemp2);
 
   //==========================
   // HEADER
@@ -605,6 +612,31 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
       }
       Serial.printf("Unit set to %s\n", isFahrenheit ? "F" : "C");
       updateOLED();  // refresh display with new unit
+      return;
+    }
+
+    // --- Handle browser simulation readings for the hardware alarm ---
+    if (doc.containsKey("simulation")) {
+      simulationMode = doc["simulation"].as<bool>();
+      if (simulationMode && doc.containsKey("sensorId") && doc.containsKey("temperature")) {
+        String sensorId = doc["sensorId"].as<String>();
+        float simulatedTemp = doc["temperature"].as<float>();
+        if (simulatedTemp >= 0.0 && simulatedTemp <= 150.0) {
+          if (sensorId == "AMG8833_1") {
+            simulationTemp1 = simulatedTemp;
+            simulationTemp2 = -999.0;
+          }
+          if (sensorId == "AMG8833_2") {
+            simulationTemp1 = -999.0;
+            simulationTemp2 = simulatedTemp;
+          }
+        }
+      } else if (!simulationMode) {
+        simulationTemp1 = -999.0;
+        simulationTemp2 = -999.0;
+      }
+      checkBreachStatus();
+      updateOLED();
       return;
     }
 

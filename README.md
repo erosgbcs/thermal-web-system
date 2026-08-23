@@ -92,6 +92,8 @@ After signing in, click the school logo at the top of the dashboard to open Simu
 
 All devices must use the same Firebase project, be signed in, and have database rules that allow authenticated users to read and write the `simulation` path.
 
+When an ESP32 WebSocket connection is available, simulation readings are also sent to the ESP32. The firmware uses the simulated value for its alarm logic, LEDs, OLED display, and buzzer. SMS alerts remain disabled during simulation to prevent test alarms from sending messages. Leaving Simulation Mode clears the simulated hardware state.
+
 ---
 
 Thermal Mapping Page
