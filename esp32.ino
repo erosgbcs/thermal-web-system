@@ -58,7 +58,6 @@ String sensor2Name = "AMG2";
 float criticalThreshold = 50.0;
 bool isBreached = false;
 bool simulationMode = false;
-bool simulationBuzzerTest = false;
 float simulationTemp1 = -999.0;
 float simulationTemp2 = -999.0;
 
@@ -347,14 +346,6 @@ void checkBreachStatus() {
     }
   }
 
-  if (simulationMode && simulationBuzzerTest) {
-    isBreached = true;
-    if (highestTemp == -999.0) {
-      highestTemp = 0.0;
-      breachSource = "Simulation";
-    }
-  }
-
   if (!isBreached && previousBreach) {
     alarmMuted = false;
   }
@@ -590,7 +581,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
 
     if (doc.containsKey("simulation")) {
       simulationMode = doc["simulation"].as<bool>();
-      simulationBuzzerTest = simulationMode && doc["buzzerTest"].as<bool>();
       if (simulationMode && doc.containsKey("sensorId") && doc.containsKey("temperature")) {
         String sensorId = doc["sensorId"].as<String>();
         float simulatedTemp = doc["temperature"].as<float>();
@@ -603,7 +593,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
           }
         }
       } else if (!simulationMode) {
-        simulationBuzzerTest = false;
         simulationTemp1 = -999.0;
         simulationTemp2 = -999.0;
       }

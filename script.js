@@ -1184,7 +1184,6 @@
             if (socket && socket.readyState === WebSocket.OPEN) {
               socket.send(JSON.stringify({
                 simulation: isActive,
-                buzzerTest: isActive,
                 sensorId,
                 temperature,
               }));
