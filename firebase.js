@@ -82,8 +82,12 @@
             msg = "No admin account found with this email.";
           if (error.code === "auth/wrong-password")
             msg = "Incorrect admin password. Please try again.";
+          if (error.code === "auth/invalid-credential")
+            msg = "Incorrect admin email or password. Please try again.";
           if (error.code === "auth/invalid-email")
             msg = "Invalid admin email address format.";
+          if (error.code === "auth/operation-not-allowed")
+            msg = "Email/password sign-in is not enabled in Firebase.";
           $authError.innerText = msg;
         } finally {
           $authSubmitBtn.disabled = false;
