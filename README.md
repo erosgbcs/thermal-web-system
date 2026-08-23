@@ -5,7 +5,7 @@ Designed for **Fortunato F. Halili Agricultural National High School** to help p
 
 ---
 
-## 🚀 Features
+## Features
 
 - **Live Temperature Monitoring** – View current temperature, historical logs, and trend data for multiple sensors.
 - **Multi‑Sensor Support** – Monitor up to several appliances simultaneously, each with its own safe threshold.
@@ -19,7 +19,7 @@ Designed for **Fortunato F. Halili Agricultural National High School** to help p
 
 ---
 
-## 🧱 Technology Stack
+## Technology Stack
 
 | Layer          | Technology |
 |----------------|------------|
@@ -31,7 +31,7 @@ Designed for **Fortunato F. Halili Agricultural National High School** to help p
 
 ---
 
-## 📦 Prerequisites
+## Prerequisites
 
 - A modern web browser (Chrome, Edge, Firefox)
 - A Firebase project with:
@@ -44,7 +44,7 @@ Designed for **Fortunato F. Halili Agricultural National High School** to help p
 
 ---
 
-## 🔧 Installation / Setup
+## Installation / Setup
 
 1. **Clone the repository**
    ```bash
@@ -75,7 +75,7 @@ Designed for **Fortunato F. Halili Agricultural National High School** to help p
 
 ---
 
-🖥️ Usage
+Usage
 
 1. Sign In – Use your admin email and password (created via Firebase Authentication).
 2. Select a Sensor – Click on any sensor card in the top row to view its live data.
@@ -85,7 +85,7 @@ Designed for **Fortunato F. Halili Agricultural National High School** to help p
 
 ---
 
-🔥 Thermal Mapping Page
+Thermal Mapping Page
 
 The mapping page renders an 8×8 grid that simulates an AMG8833 heat distribution based on the real‑time temperature of the selected sensor.
 
@@ -95,7 +95,7 @@ The mapping page renders an 8×8 grid that simulates an AMG8833 heat distributio
 
 ---
 
-📁 Project Structure
+Project Structure
 
 
 thermal-web-system/
@@ -109,7 +109,7 @@ Note: The entire application is self‑contained in a single HTML file for simpl
 
 ---
 
-👥 Sponsored by;
+Sponsored by;
 
 · Giero E. Delos Santos
 · Gabriel P. Morallos
@@ -121,13 +121,13 @@ School: Fortunato F. Halili Agricultural National High School
 
 ---
 
-📜 License
+License
 
 This project is provided for educational purposes. Contact the developers for usage permissions.
 
 ---
 
-⚠️ Important Notes
+Important Notes
 
 · The dashboard must remain open and connected to receive live data from the ESP32.
 · A data watchdog automatically zeroes out sensor readings if no data is received for 10 seconds.

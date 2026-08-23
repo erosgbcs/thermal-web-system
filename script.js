@@ -263,7 +263,7 @@
                 data-room="${room.id}"
                 data-sensor="${sensor.id}"
                 title="Edit sensor name">
-          ✏️ Edit Name
+          <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m4 16-.8 4.8L8 20l11-11a2.8 2.8 0 0 0-4-4L4 16Z"/><path d="m13.5 6.5 4 4"/></svg> Edit Name
         </button>
       </div>
 
@@ -432,7 +432,7 @@
         if (sd.status === "CRITICAL") {
           $currentTemp.classList.add("status-danger");
           $alertBanner.style.display = "block";
-          $alertBanner.innerHTML = `🚨 Warning: <strong>${sd.roomName} › ${sd.sensorName}</strong> has breached the safe limit (${formatTemp(sd.safeLimit)})!`;
+          $alertBanner.innerHTML = `<svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v5M12 17h.01"/></svg> Warning: <strong>${sd.roomName} › ${sd.sensorName}</strong> has breached the safe limit (${formatTemp(sd.safeLimit)})!`;
           $tempStatusText.innerText = "Appliance Temperature Critical";
           $tempStatusText.classList.add("status-danger");
           $thermalStateBadge.innerText = "CRITICAL BREACH";
@@ -740,12 +740,12 @@
       function setTheme(theme) {
         if (theme === "light") {
           document.documentElement.setAttribute("data-theme", "light");
-          document.getElementById("themeIcon").innerText = "🌙";
+          document.getElementById("themeIcon").innerHTML = `<path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/>`;
           document.getElementById("themeText").innerText = "Dark Mode";
           localStorage.setItem("theme", "light");
         } else {
           document.documentElement.removeAttribute("data-theme");
-          document.getElementById("themeIcon").innerText = "☀️";
+          document.getElementById("themeIcon").innerHTML = `<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>`;
           document.getElementById("themeText").innerText = "Light Mode";
           localStorage.setItem("theme", "dark");
         }
@@ -1203,7 +1203,7 @@ window.recordMapSnapshot = recordMapSnapshot;
               );
             }
 
-            // ★ NEW: Push all current sensor names to the ESP32 OLED
+            // Push all current sensor names to the ESP32 OLED
             Object.values(sensorsData).forEach((sd) => {
               socket.send(
                 JSON.stringify({

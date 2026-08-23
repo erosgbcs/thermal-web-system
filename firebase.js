@@ -289,7 +289,7 @@
         const data = snapshot.val();
         if (!data) {
           globalEventHistory.length = 0;
-          renderTableLog(); // ✅ Use the existing function
+          renderTableLog(); // Use the existing function
           return;
         }
 
@@ -305,7 +305,7 @@
         if (isDifferent) {
           globalEventHistory.length = 0;
           globalEventHistory.push(...entries);
-          renderTableLog(); // ✅ Correct function name
+          renderTableLog(); // Correct function name
         }
       });
       onAuthStateChanged(auth, (user) => {

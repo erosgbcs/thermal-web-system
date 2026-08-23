@@ -46,6 +46,23 @@
           Arial, sans-serif;
       }
 
+      .icon {
+        width: 1.1em;
+        height: 1.1em;
+        display: inline-block;
+        vertical-align: -0.18em;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      h2 .icon,
+      h3 .icon {
+        margin-right: 0.25rem;
+      }
+
       /* ADD SPECIFIC TRANSITIONS ONLY WHERE NEEDED */
       .theme-btn,
       .auth-tab,
