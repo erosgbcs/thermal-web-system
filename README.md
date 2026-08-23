@@ -64,8 +64,7 @@ Designed for **Fortunato F. Halili Agricultural National High School** to help p
      }
      ```
 3. Run the application
-   · You can open index.html directly in your browser (some features may require a local server for ES modules).
-   · Recommended: Use a lightweight server:
+  · Serve the project over HTTP so Firebase ES modules and admin login can initialize correctly:
      ```bash
      npx serve .
      ```
