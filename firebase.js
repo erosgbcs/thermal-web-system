@@ -174,6 +174,31 @@
         }
       };
 
+      // Publishes the current simulation reading so another authenticated device can control it.
+      window.publishSimulationReading = async function (
+        roomId,
+        sensorId,
+        temperature,
+        source,
+      ) {
+        try {
+          await set(ref(database, "simulation/current"), {
+            roomId,
+            sensorId,
+            temperature: Number(temperature),
+            source,
+            updatedAt: Date.now(),
+          });
+        } catch (error) {
+          console.error("Simulation sync failed:", error);
+          const status = document.getElementById("simulationConnectionStatus");
+          if (status) {
+            status.textContent = "Unable to sync simulation reading";
+            status.style.color = "var(--danger)";
+          }
+        }
+      };
+
       function updateSensorCardUI(roomId, sensorId, temp, status) {
         const card = document.querySelector(
           `.sensor-mini-card[data-sensor="${sensorId}"][data-room="${roomId}"]`,
@@ -308,6 +333,16 @@
           renderTableLog(); // Correct function name
         }
       });
+
+      // Receives simulation readings published by another authenticated device.
+      const simulationRef = ref(database, "simulation/current");
+      onValue(simulationRef, (snapshot) => {
+        const reading = snapshot.val();
+        if (reading && typeof window.receiveSimulationReading === "function") {
+          window.receiveSimulationReading(reading);
+        }
+      });
+
       onAuthStateChanged(auth, (user) => {
         if (user) {
           // User is signed in

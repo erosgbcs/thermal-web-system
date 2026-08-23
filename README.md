@@ -16,6 +16,7 @@ Designed for **Fortunato F. Halili Agricultural National High School** to help p
 - **Light/Dark Theme** – Toggleable UI theme with persistent user preference.
 - **Export & Print** – Download event logs as CSV or print directly.
 - **Secure Admin Auth** – Firebase Authentication (email/password) with password reset.
+- **Shared Simulation Mode** – Use the school logo to open simulation mode and send adjustable test readings to other authenticated devices.
 
 ---
 
@@ -84,6 +85,12 @@ Usage
 3. Set Safe Limits - Adjust the safe temperature limit; it is synced to the connected ESP32.
 4. Monitor - View the live temperature, status, alerts, and thermal map.
 5. Logs & Export - View event history, export it as CSV, or print it directly.
+
+### Shared Simulation Mode
+
+After signing in, click the school logo at the top of the dashboard to open Simulation Mode. Adjust the temperature between 10°C and 100°C and select **Apply Test Reading**. The **Start Random Simulation** button generates a new random reading in that range every two seconds. The reading is stored at `simulation/current` in Firebase and appears on other authenticated devices that have Simulation Mode open for the same sensor.
+
+All devices must use the same Firebase project, be signed in, and have database rules that allow authenticated users to read and write the `simulation` path.
 
 ---
 

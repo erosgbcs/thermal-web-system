@@ -157,13 +157,15 @@
 
     <!-- ═══════════ MAIN DASHBOARD ═══════════ -->
     <div id="dashboard-container">
-      <div style="display: flex; align-items: center; gap: 0.75rem">
-        <img
-          src="ffhnas_logo.png"
-          alt="FFHNAS"
-          style="height: 40px; object-fit: contain"
-          onerror="this.style.display = 'none'"
-        />
+      <div id="dashboardBrand" style="display: flex; align-items: center; gap: 0.75rem">
+        <button id="showSimulationBtn" class="school-logo-button" title="Open simulation mode">
+          <img
+            src="ffhnas_logo.png"
+            alt="Open simulation mode"
+            style="height: 40px; object-fit: contain"
+            onerror="this.style.display = 'none'"
+          />
+        </button>
         <img
           src="thermeye_logo.png"
           alt="ThermE.Y.E."
@@ -172,7 +174,7 @@
         />
       </div>
       <!-- Header -->
-      <div class="header-controls">
+      <div id="dashboardHeader" class="header-controls">
         <div class="header-title-group">
           <h2>Appliance Thermal Monitoring</h2>
           <div class="datetime-display">
@@ -388,6 +390,61 @@
         </div>
       </div>
       <!-- end .dashboard -->
+
+      <!-- ===== SIMULATION PAGE ===== -->
+      <div id="simulationPage" class="app-page" style="display: none">
+        <div class="header-controls page-header">
+          <div class="header-title-group">
+            <h2><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 16l3-4 3 2 5-7"/></svg> Simulation Mode</h2>
+            <div class="datetime-display">Test temperature alerts without an ESP32 device</div>
+          </div>
+          <button id="backFromSimulationBtn" class="theme-btn">
+            <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6M9 12h12M3 5v14"/></svg> Back to Dashboard
+          </button>
+        </div>
+
+        <div class="card simulation-card">
+          <div class="simulation-badge">Simulation only</div>
+          <h3>Adjust appliance temperature</h3>
+          <p class="text-muted">Apply a test reading to the currently selected sensor.</p>
+          <label for="simulationSensorSelect">Sensor to adjust</label>
+          <select id="simulationSensorSelect" class="simulation-sensor-select"></select>
+          <div class="simulation-sensor" id="simulationSensorLabel">Selected sensor: --</div>
+          <div class="simulation-connection" id="simulationConnectionStatus">Shared control ready</div>
+          <div class="simulation-value-row">
+            <output id="simulationTempValue" for="simulationTempRange">25.0°C</output>
+            <span class="text-muted">Test temperature</span>
+          </div>
+          <input id="simulationTempRange" type="range" min="10" max="100" step="0.1" value="55" aria-label="Simulation temperature" />
+          <label for="simulationTempInput">Temperature (°C)</label>
+          <input id="simulationTempInput" type="number" min="10" max="100" step="0.1" value="55" />
+          <button id="randomSimulationBtn" class="theme-btn simulation-random-btn" type="button">
+            <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m8 5-5 7 5 7V5ZM16 5l5 7-5 7V5ZM8 12h8"/></svg> Start Random Simulation
+          </button>
+          <button id="applySimulationBtn" class="auth-btn">
+            <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg> Apply Test Reading
+          </button>
+          <div id="simulationStatus" class="auth-success" aria-live="polite"></div>
+        </div>
+
+        <h3 class="simulation-preview-title">Live Dashboard Mirror</h3>
+        <div class="dashboard simulation-preview">
+          <div id="simulationAlert" class="alert-banner">
+            <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v5M12 17h.01"/></svg> Warning: simulated temperature has breached the safe limit.
+          </div>
+          <div class="card hero-card">
+            <span class="text-muted simulation-preview-label">SIMULATED SENSOR</span>
+            <div id="simulationCurrentTemp" class="temp-display">25.0°C</div>
+            <div id="simulationStateBadge" class="state-badge normal">NORMAL</div>
+            <span id="simulationStatusText" class="text-muted">Simulation ready</span>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card"><span class="text-muted">Highest</span><div id="simulationHighTemp" class="stat-val">25.0°C</div></div>
+            <div class="stat-card"><span class="text-muted">Lowest</span><div id="simulationLowTemp" class="stat-val">25.0°C</div></div>
+            <div class="stat-card"><span class="text-muted">Average</span><div id="simulationAvgTemp" class="stat-val">25.0°C</div></div>
+          </div>
+        </div>
+      </div>
 
       <!-- ===== THERMAL MAPPING PAGE (now outside .dashboard) ===== -->
       <div

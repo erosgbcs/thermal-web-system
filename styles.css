@@ -58,6 +58,135 @@
         stroke-linejoin: round;
       }
 
+      .school-logo-button {
+        align-self: flex-start;
+        padding: 0.2rem;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        background: transparent;
+        cursor: pointer;
+        transition: border-color 0.25s ease, box-shadow 0.25s ease;
+      }
+
+      .school-logo-button:hover,
+      .school-logo-button:focus-visible {
+        border-color: var(--primary);
+        box-shadow: 0 0 14px var(--primary-glow);
+        outline: none;
+      }
+
+      .app-page {
+        width: 100%;
+        max-width: 1300px;
+        margin: 0 auto;
+      }
+
+      .page-header {
+        margin-bottom: 1.5rem;
+      }
+
+      .simulation-card {
+        max-width: 640px;
+        margin: 0 auto;
+      }
+
+      .simulation-preview {
+        margin-top: 1.5rem;
+      }
+
+      .simulation-preview-title {
+        max-width: 1300px;
+        margin: 1.75rem auto 0;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .simulation-preview-label {
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+      }
+
+      .simulation-card h3 {
+        margin-bottom: 0.5rem;
+      }
+
+      .simulation-card > p {
+        margin-bottom: 1.5rem;
+      }
+
+      .simulation-badge {
+        display: inline-block;
+        margin-bottom: 1rem;
+        padding: 0.35rem 0.7rem;
+        border: 1px solid var(--warning);
+        border-radius: 8px;
+        color: var(--warning);
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .simulation-sensor {
+        margin: 1.25rem 0;
+        color: var(--primary);
+        font-weight: 700;
+      }
+
+      .simulation-sensor-select {
+        width: 100%;
+        margin-top: 0.35rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--input-bg);
+        color: var(--text-main);
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      .simulation-connection {
+        margin: -0.75rem 0 1.25rem;
+        color: var(--success);
+        font-size: 0.82rem;
+        font-weight: 600;
+      }
+
+      .simulation-value-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .simulation-value-row output {
+        color: var(--text-main);
+        font-size: 2.5rem;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+      }
+
+      #simulationTempRange {
+        width: 100%;
+        margin: 1rem 0 1.5rem;
+        accent-color: var(--primary);
+      }
+
+      .simulation-random-btn {
+        width: 100%;
+        justify-content: center;
+        margin-top: 0.75rem;
+      }
+
+      .simulation-random-btn.active {
+        border-color: var(--danger);
+        color: var(--danger);
+      }
+
       h2 .icon,
       h3 .icon {
         margin-right: 0.25rem;

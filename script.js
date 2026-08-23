@@ -20,6 +20,9 @@
       let activeSensorId = DEFAULT_ROOMS[0].sensors[0].id;
       let isCelsius = true;
       let esp32Sockets = [];
+      let simulationMode = false;
+      let randomSimulationInterval = null;
+      const simulationClientId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
       function playSystemBeep() {
         if (!audioCtx) {
@@ -1037,11 +1040,231 @@
           .querySelector(".dashboard");
         const sensorGrid = document.getElementById("sensorCardsGrid");
         const mapPage = document.getElementById("thermalMappingPage");
+        const simulationPage = document.getElementById("simulationPage");
+        const dashboardBrand = document.getElementById("dashboardBrand");
+        const dashboardHeader = document.getElementById("dashboardHeader");
+
+        function setDashboardVisibility(isVisible) {
+          const display = isVisible ? "" : "none";
+          if (dashboard) dashboard.style.display = display;
+          if (sensorGrid) sensorGrid.style.display = display;
+          if (dashboardBrand) dashboardBrand.style.display = display;
+          if (dashboardHeader) dashboardHeader.style.display = display;
+        }
+
+        function updateSimulationControls() {
+          const sd = getActiveSensorData();
+          const label = document.getElementById("simulationSensorLabel");
+          const sensorSelect = document.getElementById("simulationSensorSelect");
+          if (sensorSelect) {
+            sensorSelect.innerHTML = Object.keys(sensorsData)
+              .map((key) => {
+                const sensor = sensorsData[key];
+                return `<option value="${key}">${sensor.roomName} > ${sensor.sensorName}</option>`;
+              })
+              .join("");
+            sensorSelect.value = getActiveKey();
+          }
+          if (label) {
+            label.textContent = sd
+              ? `Selected sensor: ${sd.roomName} > ${sd.sensorName}`
+              : "Selected sensor: --";
+          }
+        }
+
+        document.getElementById("simulationSensorSelect")?.addEventListener("change", (event) => {
+          const [roomId, ...sensorParts] = event.target.value.split("_");
+          activeRoomId = roomId;
+          activeSensorId = sensorParts.join("_");
+          const sensor = getActiveSensorData();
+          updateSimulationControls();
+          syncSimulationTemperature(sensor?.currentTemp ?? 15);
+          renderSimulationPreview();
+        });
+
+        function setSimulationConnectionStatus(message, isError = false) {
+          const status = document.getElementById("simulationConnectionStatus");
+          if (status) {
+            status.textContent = message;
+            status.style.color = isError ? "var(--danger)" : "var(--success)";
+          }
+        }
+
+        function renderSimulationPreview() {
+          const sd = getActiveSensorData();
+          if (!sd || sd.currentTemp === null) return;
+
+          const values = sd.dataLog.length ? sd.dataLog : [sd.currentTemp];
+          const statusBadge = document.getElementById("simulationStateBadge");
+          const currentTemp = document.getElementById("simulationCurrentTemp");
+          const statusText = document.getElementById("simulationStatusText");
+          const alert = document.getElementById("simulationAlert");
+
+          document.getElementById("simulationHighTemp").textContent = formatTemp(Math.max(...values));
+          document.getElementById("simulationLowTemp").textContent = formatTemp(Math.min(...values));
+          document.getElementById("simulationAvgTemp").textContent = formatTemp(values.reduce((sum, value) => sum + value, 0) / values.length);
+          currentTemp.textContent = formatTemp(sd.currentTemp);
+          currentTemp.className = "temp-display";
+          statusBadge.className = "state-badge";
+          alert.style.display = "none";
+
+          if (sd.status === "CRITICAL") {
+            currentTemp.classList.add("status-danger");
+            statusBadge.classList.add("critical");
+            statusBadge.textContent = "CRITICAL BREACH";
+            statusText.textContent = "Simulated appliance temperature is critical";
+            statusText.className = "status-danger";
+            alert.style.display = "block";
+          } else if (sd.status === "HIGH_HEAT") {
+            currentTemp.classList.add("status-warning");
+            statusBadge.classList.add("high-heat");
+            statusBadge.textContent = "HIGH HEAT";
+            statusText.textContent = "Simulated temperature is approaching the limit";
+            statusText.className = "status-warning";
+          } else {
+            currentTemp.classList.add("status-safe");
+            statusBadge.classList.add("normal");
+            statusBadge.textContent = "NORMAL";
+            statusText.textContent = "Simulated appliance temperature is stable";
+            statusText.className = "status-safe";
+          }
+        }
+
+        const simulationRange = document.getElementById("simulationTempRange");
+        const simulationInput = document.getElementById("simulationTempInput");
+        const simulationValue = document.getElementById("simulationTempValue");
+        const randomSimulationButton = document.getElementById("randomSimulationBtn");
+
+        function syncSimulationTemperature(value) {
+          if (String(value).trim() === "") return;
+          const numericValue = Number(value);
+          if (!Number.isFinite(numericValue)) return;
+          const boundedValue = Math.max(10, Math.min(100, numericValue));
+          simulationRange.value = boundedValue;
+          simulationInput.value = boundedValue;
+          simulationValue.textContent = `${boundedValue.toFixed(1)}°C`;
+        }
+
+        function stopRandomSimulation() {
+          if (randomSimulationInterval) {
+            clearInterval(randomSimulationInterval);
+            randomSimulationInterval = null;
+          }
+          randomSimulationButton?.classList.remove("active");
+          if (randomSimulationButton) {
+            randomSimulationButton.innerHTML = `<svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m8 5-5 7 5 7V5ZM16 5l5 7-5 7V5ZM8 12h8"/></svg> Start Random Simulation`;
+          }
+        }
+
+        function startRandomSimulation() {
+          stopRandomSimulation();
+          const generateReading = () => {
+            const temperature = 10 + Math.random() * 90;
+            syncSimulationTemperature(temperature);
+            updateSimulationReading(true);
+            const status = document.getElementById("simulationStatus");
+            if (status) status.textContent = `Random reading: ${temperature.toFixed(1)}°C`;
+          };
+          generateReading();
+          randomSimulationInterval = setInterval(generateReading, 2000);
+          randomSimulationButton?.classList.add("active");
+          if (randomSimulationButton) {
+            randomSimulationButton.innerHTML = `<svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg> Stop Random Simulation`;
+          }
+        }
+
+        function updateSimulationReading(shouldBroadcast = false) {
+          const rawValue = simulationInput.value.trim();
+          const temperature = Number(rawValue);
+          const sd = getActiveSensorData();
+          const status = document.getElementById("simulationStatus");
+          if (!sd || rawValue === "" || !Number.isFinite(temperature)) {
+            if (status) status.textContent = "Enter a valid temperature first.";
+            return;
+          }
+
+          syncSimulationTemperature(temperature);
+          evaluateMetrics(activeRoomId, activeSensorId, temperature);
+          renderSensorCards();
+          refreshHeroDisplay();
+          renderSimulationPreview();
+
+          if (shouldBroadcast && typeof window.publishSimulationReading === "function") {
+            window.publishSimulationReading(
+              activeRoomId,
+              activeSensorId,
+              temperature,
+              simulationClientId,
+            );
+            setSimulationConnectionStatus("Shared reading sent to connected devices");
+            status.textContent = `Test reading applied: ${temperature.toFixed(1)}°C`;
+          } else if (shouldBroadcast) {
+            setSimulationConnectionStatus("Firebase is not connected; reading is local only", true);
+          }
+        }
+
+        simulationRange?.addEventListener("input", (event) => {
+          syncSimulationTemperature(event.target.value);
+          updateSimulationReading();
+        });
+        simulationInput?.addEventListener("input", (event) => {
+          syncSimulationTemperature(event.target.value);
+          updateSimulationReading();
+        });
+
+        document.getElementById("applySimulationBtn")?.addEventListener("click", () => {
+          updateSimulationReading(true);
+        });
+
+        randomSimulationButton?.addEventListener("click", () => {
+          if (randomSimulationInterval) stopRandomSimulation();
+          else startRandomSimulation();
+        });
+
+        document.getElementById("showSimulationBtn")?.addEventListener("click", () => {
+          simulationMode = true;
+          setDashboardVisibility(false);
+          if (mapPage) mapPage.style.display = "none";
+          if (simulationPage) simulationPage.style.display = "block";
+          updateSimulationControls();
+          renderSimulationPreview();
+          setSimulationConnectionStatus("Shared control ready");
+        });
+
+        window.receiveSimulationReading = function (reading) {
+          if (!reading || reading.source === simulationClientId) return;
+          const temperature = Number(reading.temperature);
+          if (
+            !simulationMode ||
+            !Number.isFinite(temperature) ||
+            reading.roomId !== activeRoomId ||
+            reading.sensorId !== activeSensorId
+          ) {
+            return;
+          }
+          syncSimulationTemperature(temperature);
+          evaluateMetrics(activeRoomId, activeSensorId, temperature);
+          renderSensorCards();
+          refreshHeroDisplay();
+          renderSimulationPreview();
+          setSimulationConnectionStatus("Reading received from another device");
+          document.getElementById("simulationStatus").textContent =
+            `Remote reading applied: ${temperature.toFixed(1)}°C`;
+        };
+
+        document.getElementById("backFromSimulationBtn")?.addEventListener("click", () => {
+          stopRandomSimulation();
+          simulationMode = false;
+          if (simulationPage) simulationPage.style.display = "none";
+          setDashboardVisibility(true);
+          refreshHeroDisplay();
+        });
 
         // Show map page
         document.getElementById("showMapBtn")?.addEventListener("click", () => {
-          if (dashboard) dashboard.style.display = "none";
-          if (sensorGrid) sensorGrid.style.display = "none";
+          simulationMode = false;
+          setDashboardVisibility(false);
+          if (simulationPage) simulationPage.style.display = "none";
           if (mapPage) mapPage.style.display = "block";
           initThermalMapping();
         });
@@ -1050,8 +1273,7 @@
         document
           .getElementById("backToDashboardBtn")
           ?.addEventListener("click", () => {
-            if (dashboard) dashboard.style.display = "";
-            if (sensorGrid) sensorGrid.style.display = "";
+            setDashboardVisibility(true);
             if (mapPage) mapPage.style.display = "none";
             if (mapState.interval) clearInterval(mapState.interval);
           });
