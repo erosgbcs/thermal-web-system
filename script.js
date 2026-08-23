@@ -1279,26 +1279,26 @@
         window.receiveSimulationReading = function (reading) {
           if (!reading || reading.source === simulationClientId) return;
           const temperature = Number(reading.temperature);
-          if (
-            !simulationMode ||
-            !Number.isFinite(temperature) ||
-            reading.roomId !== activeRoomId ||
-            reading.sensorId !== activeSensorId
-          ) {
+          if (!Number.isFinite(temperature) || !reading.roomId || !reading.sensorId) {
             return;
           }
-          syncSimulationTemperature(temperature);
-          sendSimulationToEsp32(true, temperature);
-          evaluateMetrics(activeRoomId, activeSensorId, temperature, {
+
+          activeRoomId = reading.roomId;
+          activeSensorId = reading.sensorId;
+          evaluateMetrics(reading.roomId, reading.sensorId, temperature, {
             publishTelemetry: false,
             publishHistory: false,
-            refreshDashboard: false,
+            refreshDashboard: true,
             recordHistory: false,
           });
-          renderSimulationPreview();
-          setSimulationConnectionStatus("Reading received from another device");
-          document.getElementById("simulationStatus").textContent =
-            `Remote reading applied: ${temperature.toFixed(1)}°C`;
+
+          if (simulationMode) {
+            syncSimulationTemperature(temperature);
+            renderSimulationPreview();
+            setSimulationConnectionStatus("Reading received from another device");
+            document.getElementById("simulationStatus").textContent =
+              `Remote reading applied: ${temperature.toFixed(1)}°C`;
+          }
         };
 
         document.getElementById("backFromSimulationBtn")?.addEventListener("click", () => {

@@ -43,6 +43,18 @@ Designed for **Fortunato F. Halili Agricultural National High School** to help p
   - Accepts commands for `safeLimit`, unit change, etc.
 - Node.js and npm for running the local development server.
 
+### ESP32 Arduino Libraries
+
+Install these libraries in Arduino IDE using **Tools > Manage Libraries**:
+
+- **ArduinoJson** by Benoit Blanchon
+- **WebSockets** by Markus Sattler
+- **Adafruit GFX Library**
+- **Adafruit SSD1306**
+- **Adafruit AMG8833**
+
+The Adafruit libraries may also request the **Adafruit BusIO** dependency; install it when prompted. The `WiFi`, `Wire`, `esp_sleep`, and `Preferences` headers are included with the ESP32 board package.
+
 ---
 
 ## Installation / Setup
