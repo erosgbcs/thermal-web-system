@@ -100,7 +100,7 @@ Usage
 
 ### Shared Simulation Mode
 
-After signing in, click the school logo at the top of the dashboard to open Simulation Mode. Simulation starts automatically and generates a smoothly changing reading between 10°C and 100°C every second. Use **Stop Random Simulation** to adjust a value manually, or use **Start Random Simulation** to resume automatic readings. Select **Apply Test Reading** to share the current value with other authenticated devices through `simulation/current`.
+After signing in, click the school logo at the top of the dashboard to open Simulation Mode. Simulation starts automatically and generates independent, smoothly changing readings for both sensors between 10°C and 100°C every second. Use **Stop Random Simulation** to adjust a selected sensor manually, or use **Start Random Simulation** to resume automatic readings. The readings are shared with other authenticated devices through `simulation/current`.
 
 All devices must use the same Firebase project, be signed in, and have database rules that allow authenticated users to read and write the `simulation` path.
 

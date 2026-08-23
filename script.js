@@ -1175,13 +1175,17 @@
           }
         }
 
-        function sendSimulationToEsp32(isActive, temperature = null) {
+        function sendSimulationToEsp32(
+          isActive,
+          temperature = null,
+          sensorId = activeSensorId,
+        ) {
           esp32Sockets.forEach((socket) => {
             if (socket && socket.readyState === WebSocket.OPEN) {
               socket.send(JSON.stringify({
                 simulation: isActive,
                 buzzerTest: isActive,
-                sensorId: activeSensorId,
+                sensorId,
                 temperature,
               }));
             }
@@ -1192,19 +1196,42 @@
 
         function startRandomSimulation() {
           stopRandomSimulation();
-          let simulatedTemperature = Number(simulationInput.value);
-          if (!Number.isFinite(simulatedTemperature)) simulatedTemperature = 55;
+          const simulatedTemperatures = {};
+          Object.keys(sensorsData).forEach((key) => {
+            const currentTemperature = Number(sensorsData[key].currentTemp);
+            simulatedTemperatures[key] = Number.isFinite(currentTemperature)
+              ? Math.max(10, Math.min(100, currentTemperature))
+              : 55;
+          });
           const generateReading = () => {
-            const change = (Math.random() - 0.5) * 6;
-            simulatedTemperature = Math.max(
-              10,
-              Math.min(100, simulatedTemperature + change),
-            );
-            const temperature = simulatedTemperature;
-            syncSimulationTemperature(temperature);
-            updateSimulationReading(true);
+            Object.keys(sensorsData).forEach((key) => {
+              const sensor = sensorsData[key];
+              const change = (Math.random() - 0.5) * 6;
+              simulatedTemperatures[key] = Math.max(
+                10,
+                Math.min(100, simulatedTemperatures[key] + change),
+              );
+              evaluateMetrics(sensor.roomId, sensor.sensorId, simulatedTemperatures[key], {
+                publishTelemetry: false,
+                publishHistory: false,
+                refreshDashboard: false,
+                recordHistory: false,
+              });
+              sendSimulationToEsp32(true, simulatedTemperatures[key], sensor.sensorId);
+              if (typeof window.publishSimulationReading === "function") {
+                window.publishSimulationReading(
+                  sensor.roomId,
+                  sensor.sensorId,
+                  simulatedTemperatures[key],
+                  simulationClientId,
+                );
+              }
+            });
+            syncSimulationTemperature(simulatedTemperatures[getActiveKey()]);
+            refreshHeroDisplay();
+            renderSimulationPreview();
             const status = document.getElementById("simulationStatus");
-            if (status) status.textContent = `Random reading: ${temperature.toFixed(1)}°C`;
+            if (status) status.textContent = "Random readings active for both sensors";
           };
           generateReading();
           randomSimulationInterval = setInterval(generateReading, 1000);

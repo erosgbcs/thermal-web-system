@@ -9,11 +9,11 @@
 #include <Preferences.h>
 
 // WiFi Configuration
-const char* WIFI_SSID = "AGSAMOSAM";
-const char* WIFI_PASS = "G5CMgUD6";
+const char* WIFI_SSID = "Abdc_NetPro15-2.4G";
+const char* WIFI_PASS = "MatheaZzy25";
 
 // SIM800L Configuration
-const char* SMS_TARGET = "+639551621325";  // <--- CHANGE THIS TO YOUR PHONE NUMBER
+const char* SMS_TARGET = "+639551621325";
 const int SIM800_RX = 16;
 const int SIM800_TX = 17;
 HardwareSerial sim800(2);
@@ -27,7 +27,7 @@ const unsigned long SMS_COOLDOWN_MS = 30000;
 const int RED_LED_PIN = 23;
 const int GREEN_LED_PIN = 19;
 const int BUZZER_PIN = 18;
-const int BUTTON_PIN = 32;  // <--- Push Button Pin (GPIO 32 to GND)
+const int BUTTON_PIN = 32;
 
 // Button & Alarm variables
 unsigned long buttonPressTime = 0;
@@ -50,11 +50,11 @@ bool amg1Connected = false;
 bool amg2Connected = false;
 float amgCalibrationOffset = 0.0;
 
-// Dynamic Sensor Names (Received from Dashboard)
+// Dynamic Sensor Names
 String sensor1Name = "AMG1";
 String sensor2Name = "AMG2";
 
-// Dynamic Critical Breach Limit (Always in Celsius)
+// Dynamic Critical Breach Limit (Celsius)
 float criticalThreshold = 50.0;
 bool isBreached = false;
 bool simulationMode = false;
@@ -62,15 +62,13 @@ bool simulationBuzzerTest = false;
 float simulationTemp1 = -999.0;
 float simulationTemp2 = -999.0;
 
-// Unit Toggle State (Default Celsius)
+// Unit Toggle State
 bool isFahrenheit = false;
 
 // WebSocket Server
 WebSocketsServer webSocket = WebSocketsServer(81);
 
-// ==========================================
 // Optimized Intervals
-// ==========================================
 unsigned long lastSend = 0;
 unsigned long lastOLEDUpdate = 0;
 unsigned long lastSensorRead = 0;
@@ -79,9 +77,7 @@ const unsigned long SENSOR_INTERVAL_MS = 200;
 const unsigned long TELEMETRY_INTERVAL_MS = 200;
 const unsigned long OLED_INTERVAL_MS = 200;
 
-// ==========================================
 // Function Declarations
-// ==========================================
 void readAllSensors();
 void sendTelemetryData();
 void checkBreachStatus();
@@ -97,7 +93,6 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  // Initialize Button and Deep Sleep Wakeup
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_32, 0);
 
@@ -106,22 +101,17 @@ void setup() {
   sensor2Name = prefs.getString("s2_name", "AMG2");
   criticalThreshold = prefs.getFloat("threshold", 50.0);
   prefs.end();
-  // Initialize I2C
+
   Wire.begin(21, 22);
   Wire.setClock(400000);
 
-  // Initialize SIM800L
-  // Initialize SIM800L
   sim800.begin(115200, SERIAL_8N1, SIM800_RX, SIM800_TX);
   delay(1000);
-  
-  // Force SIM800L to lock its baud rate to 115200
   sim800.println("AT+IPR=115200");
   delay(500);
-  sim800.println("ATE0"); // Turn off command echo so logs stay clean
+  sim800.println("ATE0");
   delay(500);
 
-  // Initialize Hardware Pins
   pinMode(RED_LED_PIN, OUTPUT);
   pinMode(GREEN_LED_PIN, OUTPUT);
   pinMode(BUZZER_PIN, OUTPUT);
@@ -130,9 +120,8 @@ void setup() {
   digitalWrite(GREEN_LED_PIN, HIGH);
   digitalWrite(BUZZER_PIN, HIGH);
 
-  // Initialize OLED
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println(F("OLED initialization failed (Check 0x3C address & wiring)"));
+    Serial.println(F("OLED initialization failed"));
   } else {
     display.clearDisplay();
     display.setTextColor(WHITE);
@@ -149,25 +138,22 @@ void setup() {
     display.display();
   }
 
-  // Initialize first AMG8833 (0x69)
   if (!amg1.begin(0x69)) {
-    Serial.println(F("AMG8833 #1 (0x69) initialization failed."));
+    Serial.println(F("AMG8833 #1 (0x69) failed."));
     amg1Connected = false;
   } else {
     Serial.println(F("AMG8833 #1 (0x69) Initialized."));
     amg1Connected = true;
   }
 
-  // Initialize second AMG8833 (0x68)
   if (!amg2.begin(0x68)) {
-    Serial.println(F("AMG8833 #2 (0x68) initialization failed."));
+    Serial.println(F("AMG8833 #2 (0x68) failed."));
     amg2Connected = false;
   } else {
     Serial.println(F("AMG8833 #2 (0x68) Initialized."));
     amg2Connected = true;
   }
 
-  // Connect to Wi-Fi
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   Serial.print("Connecting to WiFi");
@@ -188,7 +174,14 @@ void setup() {
   display.setCursor(10, 20);
 
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWiFi Connected!");
+    // --- PRINT IP ADDRESS TO SERIAL MONITOR ---
+    Serial.println("\n------------------------------------");
+    Serial.println("WiFi Connected Successfully!");
+    Serial.print("ESP32 Local IP Address: ");
+    Serial.println(WiFi.localIP());
+    Serial.println("------------------------------------");
+
+    // Display IP Address on OLED
     display.println("WiFi Connected!");
     display.setCursor(10, 35);
     display.print("IP: ");
@@ -211,28 +204,24 @@ void setup() {
 }
 
 void loop() {
-  // Print any incoming data from the SIM800L to your Serial Monitor
   while (sim800.available()) {
     Serial.write(sim800.read());
   }
-  // Send any typed commands from your Serial Monitor to the SIM800L
   while (Serial.available()) {
     sim800.write(Serial.read());
   }
   webSocket.loop();
 
-  // Handle power/reset button logic
   handleButton();
 
   unsigned long currentMillis = millis();
-  // 1. Read Sensors
+
   if (currentMillis - lastSensorRead >= SENSOR_INTERVAL_MS) {
     readAllSensors();
     checkBreachStatus();
     lastSensorRead = currentMillis;
   }
 
-  // 2. Send Data to Web Dashboard
   if (currentMillis - lastSend >= TELEMETRY_INTERVAL_MS) {
     if (WiFi.status() == WL_CONNECTED) {
       sendTelemetryData();
@@ -240,16 +229,12 @@ void loop() {
     lastSend = currentMillis;
   }
 
-  // 3. Update OLED Display
   if (currentMillis - lastOLEDUpdate >= OLED_INTERVAL_MS) {
     updateOLED();
     lastOLEDUpdate = currentMillis;
   }
 }
 
-// ==========================================
-// Button Handling Logic
-// ==========================================
 void handleButton() {
   bool currentButtonState = (digitalRead(BUTTON_PIN) == LOW);
 
@@ -260,7 +245,6 @@ void handleButton() {
     unsigned long pressDuration = millis() - buttonPressTime;
     buttonPressed = false;
 
-    // Short Press: Mute Alarm
     if (pressDuration > 50 && pressDuration < 2000) {
       if (isBreached) {
         alarmMuted = true;
@@ -268,16 +252,12 @@ void handleButton() {
       }
     }
   } else if (currentButtonState && buttonPressed) {
-    // Long Press: Power Off
     if (millis() - buttonPressTime > 3000) {
       powerOffSystem();
     }
   }
 }
 
-// ==========================================
-// Deep Sleep / Power Off Logic
-// ==========================================
 void powerOffSystem() {
   Serial.println("Powering off...");
 
@@ -304,7 +284,6 @@ void powerOffSystem() {
 }
 
 void readAllSensors() {
-  // Read AMG #1
   if (amg1Connected) {
     amg1.readPixels(amgPixels1);
     amgMaxTemp1 = -999.0;
@@ -322,7 +301,6 @@ void readAllSensors() {
     amgMaxTemp1 = -999.0;
   }
 
-  // Read AMG #2
   if (amg2Connected) {
     amg2.readPixels(amgPixels2);
     amgMaxTemp2 = -999.0;
@@ -340,8 +318,6 @@ void readAllSensors() {
     amgMaxTemp2 = -999.0;
   }
 }
-
-
 
 void checkBreachStatus() {
   bool previousBreach = isBreached;
@@ -384,7 +360,6 @@ void checkBreachStatus() {
   }
 
   if (isBreached) {
-    // Alarm state: red ON, green OFF
     digitalWrite(RED_LED_PIN, HIGH);
     digitalWrite(GREEN_LED_PIN, LOW);
 
@@ -399,7 +374,6 @@ void checkBreachStatus() {
       digitalWrite(BUZZER_PIN, HIGH);
     }
   } else {
-    // Safe state: red OFF, green ON
     digitalWrite(RED_LED_PIN, LOW);
     digitalWrite(GREEN_LED_PIN, HIGH);
     digitalWrite(BUZZER_PIN, HIGH);
@@ -410,21 +384,16 @@ void checkBreachStatus() {
 void sendSMSAlert(float temp, String source) {
   Serial.println("\n--- Triggering SMS ---");
   
-  // 1. Set to Text Mode
   sim800.println("AT+CMGF=1");
   delay(500); 
-  Serial.print("SIM Reply 1: ");
   while(sim800.available()) { Serial.write(sim800.read()); }
   
-  // 2. Define the Target Number
   sim800.print("AT+CMGS=\"");
   sim800.print(SMS_TARGET);
   sim800.println("\"");
   delay(500); 
-  Serial.print("SIM Reply 2: ");
   while(sim800.available()) { Serial.write(sim800.read()); }
   
-  // 3. Write the Message
   sim800.print("CRITICAL ALERT! Temperature breach detected by ");
   sim800.print(source);
   sim800.print(". Reading: ");
@@ -434,33 +403,36 @@ void sendSMSAlert(float temp, String source) {
   sim800.println("C.");
   delay(500); 
   
-  // 4. Send CTRL+Z to dispatch the message
   sim800.write(26);
   
   Serial.println("\nSMS data dispatched. Waiting 5 seconds for network...");
   delay(5000); 
   
-  Serial.print("SIM Final Reply: ");
   while(sim800.available()) { Serial.write(sim800.read()); }
   
   Serial.println("\n--- SMS Routine Complete ---\n");
 }
+
 void sendTelemetryData() {
-  if (amgMaxTemp1 != -999.0) {
+  float telemetryTemp1 = simulationMode ? simulationTemp1 : amgMaxTemp1;
+  float telemetryTemp2 = simulationMode ? simulationTemp2 : amgMaxTemp2;
+
+  if (telemetryTemp1 != -999.0) {
     StaticJsonDocument<1024> doc;
     doc["roomId"] = "room1";
     doc["sensorId"] = "AMG8833_1";
 
-    float outTemp1 = isFahrenheit ? (amgMaxTemp1 * 1.8f + 32.0f) : amgMaxTemp1;
+    float outTemp1 = isFahrenheit ? (telemetryTemp1 * 1.8f + 32.0f) : telemetryTemp1;
     doc["temperature"] = (float)(round(outTemp1 * 10.0) / 10.0);
 
-    doc["isBreached"] = (amgMaxTemp1 >= criticalThreshold);
+    doc["isBreached"] = (telemetryTemp1 >= criticalThreshold);
     doc["limit"] = criticalThreshold;
     doc["unit"] = isFahrenheit ? "F" : "C";
 
     JsonArray pixels = doc.createNestedArray("pixels");
     for (int i = 0; i < 64; i++) {
-      float pTemp = isFahrenheit ? (amgPixels1[i] * 1.8f + 32.0f) : amgPixels1[i];
+      float sourcePixel = simulationMode ? telemetryTemp1 : amgPixels1[i];
+      float pTemp = isFahrenheit ? (sourcePixel * 1.8f + 32.0f) : sourcePixel;
       pixels.add((float)(round(pTemp * 10.0) / 10.0));
     }
 
@@ -469,21 +441,22 @@ void sendTelemetryData() {
     webSocket.broadcastTXT(output);
   }
 
-  if (amgMaxTemp2 != -999.0) {
+  if (telemetryTemp2 != -999.0) {
     StaticJsonDocument<1024> doc;
     doc["roomId"] = "room1";
     doc["sensorId"] = "AMG8833_2";
 
-    float outTemp2 = isFahrenheit ? (amgMaxTemp2 * 1.8f + 32.0f) : amgMaxTemp2;
+    float outTemp2 = isFahrenheit ? (telemetryTemp2 * 1.8f + 32.0f) : telemetryTemp2;
     doc["temperature"] = (float)(round(outTemp2 * 10.0) / 10.0);
 
-    doc["isBreached"] = (amgMaxTemp2 >= criticalThreshold);
+    doc["isBreached"] = (telemetryTemp2 >= criticalThreshold);
     doc["limit"] = criticalThreshold;
     doc["unit"] = isFahrenheit ? "F" : "C";
 
     JsonArray pixels = doc.createNestedArray("pixels");
     for (int i = 0; i < 64; i++) {
-      float pTemp = isFahrenheit ? (amgPixels2[i] * 1.8f + 32.0f) : amgPixels2[i];
+      float sourcePixel = simulationMode ? telemetryTemp2 : amgPixels2[i];
+      float pTemp = isFahrenheit ? (sourcePixel * 1.8f + 32.0f) : sourcePixel;
       pixels.add((float)(round(pTemp * 10.0) / 10.0));
     }
 
@@ -506,9 +479,7 @@ void updateOLED() {
   float dAmg1 = (displayTemp1 == -999.0) ? -999.0 : (isFahrenheit ? displayTemp1 * 1.8 + 32 : displayTemp1);
   float dAmg2 = (displayTemp2 == -999.0) ? -999.0 : (isFahrenheit ? displayTemp2 * 1.8 + 32 : displayTemp2);
 
-  //==========================
   // HEADER
-  //==========================
   display.drawLine(0, 11, 127, 11, WHITE);
   display.setTextSize(1);
   display.setCursor(0, 1);
@@ -522,27 +493,22 @@ void updateOLED() {
     display.print("OFF");
   }
 
-  //==========================
   // SENSOR DISPLAY
-  //==========================
-  // Show up to 8 characters of the sensor name, then the temperature value
   String disp1 = sensor1Name.length() > 8 ? sensor1Name.substring(0, 8) : sensor1Name;
   display.setCursor(2, 16);
   display.print(disp1);
-  display.setCursor(75, 16);  // moved to the right
+  display.setCursor(75, 16);
   if (dAmg1 == -999.0) display.print("--");
   else display.print(dAmg1, 1);
 
   String disp2 = sensor2Name.length() > 8 ? sensor2Name.substring(0, 8) : sensor2Name;
   display.setCursor(2, 28);
   display.print(disp2);
-  display.setCursor(75, 28);  // moved to the right
+  display.setCursor(75, 28);
   if (dAmg2 == -999.0) display.print("--");
   else display.print(dAmg2, 1);
 
-  //==========================
   // FOOTER
-  //==========================
   display.drawLine(0, 52, 127, 52, WHITE);
 
   display.setCursor(2, 56);
@@ -572,13 +538,13 @@ void updateOLED() {
 
   display.display();
 }
+
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
   if (type == WStype_TEXT) {
     StaticJsonDocument<300> doc;
     DeserializationError error = deserializeJson(doc, payload);
     if (error) return;
 
-    // --- Handle sensor name update ---
     if (doc.containsKey("type") && doc["type"] == "updateSensorName") {
       String targetId = doc["sensorId"].as<String>();
       String newName = doc["sensorName"].as<String>();
@@ -592,11 +558,10 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
         prefs.putString("s2_name", newName);
       }
       prefs.end();
-      updateOLED();  // refresh OLED with new name
+      updateOLED();
       return;
     }
 
-    // --- Handle safe limit update ---
     if (doc.containsKey("safeLimit")) {
       float newLimit = doc["safeLimit"].as<float>();
       if (newLimit > 0 && newLimit < 150) {
@@ -606,12 +571,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
         prefs.begin("thermeye", false);
         prefs.putFloat("threshold", criticalThreshold);
         prefs.end();
-        checkBreachStatus();  // re‑evaluate immediately
+        checkBreachStatus();
       }
       return;
     }
 
-    // --- Handle unit toggle ---
     if (doc.containsKey("unit")) {
       String unit = doc["unit"].as<String>();
       if (unit == "F") {
@@ -620,11 +584,10 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
         isFahrenheit = false;
       }
       Serial.printf("Unit set to %s\n", isFahrenheit ? "F" : "C");
-      updateOLED();  // refresh display with new unit
+      updateOLED();
       return;
     }
 
-    // --- Handle browser simulation readings for the hardware alarm ---
     if (doc.containsKey("simulation")) {
       simulationMode = doc["simulation"].as<bool>();
       simulationBuzzerTest = simulationMode && doc["buzzerTest"].as<bool>();
@@ -634,10 +597,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
         if (simulatedTemp >= 0.0 && simulatedTemp <= 150.0) {
           if (sensorId == "AMG8833_1") {
             simulationTemp1 = simulatedTemp;
-            simulationTemp2 = -999.0;
           }
           if (sensorId == "AMG8833_2") {
-            simulationTemp1 = -999.0;
             simulationTemp2 = simulatedTemp;
           }
         }
@@ -651,7 +612,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
       return;
     }
 
-    // --- Handle initial connection (dashboard requests sync) ---
     if (doc.containsKey("type") && doc["type"] == "connected") {
       StaticJsonDocument<200> response;
       response["safeLimit"] = criticalThreshold;
