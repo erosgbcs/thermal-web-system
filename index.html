@@ -411,8 +411,12 @@
           <select id="simulationSensorSelect" class="simulation-sensor-select"></select>
           <div class="simulation-sensor" id="simulationSensorLabel">Selected sensor: --</div>
           <div class="simulation-connection" id="simulationConnectionStatus">Shared control ready</div>
+          <div class="simulation-range-info">
+            <span>Random range: <strong>10°C to 100°C</strong></span>
+            <span>Safe limit: <strong id="simulationLimitValue">--.-°C</strong></span>
+          </div>
           <div class="simulation-value-row">
-            <output id="simulationTempValue" for="simulationTempRange">25.0°C</output>
+            <output id="simulationTempValue" for="simulationTempRange">55.0°C</output>
             <span class="text-muted">Test temperature</span>
           </div>
           <input id="simulationTempRange" type="range" min="10" max="100" step="0.1" value="55" aria-label="Simulation temperature" />

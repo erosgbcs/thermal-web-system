@@ -156,6 +156,27 @@
         font-weight: 600;
       }
 
+      .simulation-range-info {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        color: var(--text-muted);
+        font-size: 0.82rem;
+      }
+
+      .simulation-range-info strong {
+        color: var(--text-main);
+      }
+
+      @media (max-width: 600px) {
+        .simulation-range-info {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 0.35rem;
+        }
+      }
+
       .simulation-value-row {
         display: flex;
         align-items: baseline;

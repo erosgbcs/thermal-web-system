@@ -1068,6 +1068,7 @@
         function updateSimulationControls() {
           const sd = getActiveSensorData();
           const label = document.getElementById("simulationSensorLabel");
+          const limit = document.getElementById("simulationLimitValue");
           const sensorSelect = document.getElementById("simulationSensorSelect");
           if (sensorSelect) {
             sensorSelect.innerHTML = Object.keys(sensorsData)
@@ -1082,6 +1083,9 @@
             label.textContent = sd
               ? `Selected sensor: ${sd.roomName} > ${sd.sensorName}`
               : "Selected sensor: --";
+          }
+          if (limit) {
+            limit.textContent = sd ? formatTemp(sd.safeLimit) : "--.-°C";
           }
         }
 
@@ -1112,10 +1116,12 @@
           const currentTemp = document.getElementById("simulationCurrentTemp");
           const statusText = document.getElementById("simulationStatusText");
           const alert = document.getElementById("simulationAlert");
+          const limit = document.getElementById("simulationLimitValue");
 
           document.getElementById("simulationHighTemp").textContent = formatTemp(Math.max(...values));
           document.getElementById("simulationLowTemp").textContent = formatTemp(Math.min(...values));
           document.getElementById("simulationAvgTemp").textContent = formatTemp(values.reduce((sum, value) => sum + value, 0) / values.length);
+          if (limit) limit.textContent = formatTemp(sd.safeLimit);
           currentTemp.textContent = formatTemp(sd.currentTemp);
           currentTemp.className = "temp-display";
           statusBadge.className = "state-badge";
@@ -1185,15 +1191,22 @@
 
         function startRandomSimulation() {
           stopRandomSimulation();
+          let simulatedTemperature = Number(simulationInput.value);
+          if (!Number.isFinite(simulatedTemperature)) simulatedTemperature = 55;
           const generateReading = () => {
-            const temperature = 10 + Math.random() * 90;
+            const change = (Math.random() - 0.5) * 6;
+            simulatedTemperature = Math.max(
+              10,
+              Math.min(100, simulatedTemperature + change),
+            );
+            const temperature = simulatedTemperature;
             syncSimulationTemperature(temperature);
             updateSimulationReading(true);
             const status = document.getElementById("simulationStatus");
             if (status) status.textContent = `Random reading: ${temperature.toFixed(1)}°C`;
           };
           generateReading();
-          randomSimulationInterval = setInterval(generateReading, 2000);
+          randomSimulationInterval = setInterval(generateReading, 1000);
           randomSimulationButton?.classList.add("active");
           if (randomSimulationButton) {
             randomSimulationButton.innerHTML = `<svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg> Stop Random Simulation`;
@@ -1260,6 +1273,7 @@
           updateSimulationControls();
           renderSimulationPreview();
           setSimulationConnectionStatus("Shared control ready");
+          startRandomSimulation();
         });
 
         window.receiveSimulationReading = function (reading) {
