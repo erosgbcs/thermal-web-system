@@ -1,5 +1,4 @@
 
-
 ## How the System Works
 
 The system has four main parts:
