@@ -1286,6 +1286,7 @@
 
           activeRoomId = reading.roomId;
           activeSensorId = reading.sensorId;
+          sendSimulationToEsp32(true, temperature);
           evaluateMetrics(reading.roomId, reading.sensorId, temperature, {
             publishTelemetry: false,
             publishHistory: false,
