@@ -40,7 +40,7 @@ Designed for **Fortunato F. Halili Agricultural National High School** to help p
 - ESP32 device(s) flashed with firmware that:
   - Streams temperature data over WebSocket (port 81)
   - Accepts commands for `safeLimit`, unit change, etc.
-- (Optional) Node.js if you want to serve the files locally with a simple HTTP server.
+- Node.js and npm for running the local development server.
 
 ---
 
@@ -53,8 +53,10 @@ Designed for **Fortunato F. Halili Agricultural National High School** to help p
 ```
 
 2. Configure Firebase
-   · Replace the firebaseConfig object inside the <script type="module"> tag in index.html with your own Firebase project credentials.
-   · Ensure your Realtime Database rules allow read/write for authenticated users:
+  - Replace the `firebaseConfig` object in `firebase.js` with your Firebase project credentials.
+  - Enable **Authentication > Sign-in method > Email/Password**.
+  - Create an administrator account in Firebase Authentication.
+  - Ensure your Realtime Database rules allow read/write for authenticated users:
      ```json
      {
        "rules": {
@@ -64,24 +66,24 @@ Designed for **Fortunato F. Halili Agricultural National High School** to help p
      }
      ```
 3. Run the application
-  · Serve the project over HTTP so Firebase ES modules and admin login can initialize correctly:
+  - Serve the project over HTTP so Firebase ES modules and admin login can initialize correctly:
      ```bash
      npx serve .
      ```
-     Then visit http://localhost:3000.
+  - Open http://localhost:3000 in your browser. Do not open `index.html` directly with `file://`.
 4. Connect an ESP32
-   · Enter the ESP32’s IP address (e.g., 192.168.1.50) in the dashboard’s ESP32 Host / IP field.
-   · The connection will be automatically established via WebSocket on port 81.
+  - Enter the ESP32’s IP address (for example, `192.168.1.50`) in the dashboard’s ESP32 Host / IP field.
+  - The connection will be automatically established via WebSocket on port 81.
 
 ---
 
 Usage
 
-1. Sign In – Use your admin email and password (created via Firebase Authentication).
-2. Select a Sensor – Click on any sensor card in the top row to view its live data.
-3. Set Safe Limits – Adjust the threshold slider; the value is immediately synced to the connected ESP32.
-4. Monitor – Watch the hero display and the thermal map (available via the “Thermal Map” button).
-5. Logs & Export – View event history, export as CSV, or print directly.
+1. Sign In - Use your administrator email and password created in Firebase Authentication.
+2. Select a Sensor - Click a sensor card to view its live data.
+3. Set Safe Limits - Adjust the safe temperature limit; it is synced to the connected ESP32.
+4. Monitor - View the live temperature, status, alerts, and thermal map.
+5. Logs & Export - View event history, export it as CSV, or print it directly.
 
 ---
 
@@ -89,9 +91,9 @@ Thermal Mapping Page
 
 The mapping page renders an 8×8 grid that simulates an AMG8833 heat distribution based on the real‑time temperature of the selected sensor.
 
-· Each cell’s colour indicates temperature intensity.
-· Statistics (avg, max, min, hotspots) are displayed on the side.
-· History of map snapshots is kept locally.
+- Each cell’s colour indicates temperature intensity.
+- Statistics such as average, maximum, and minimum temperature are displayed beside the map.
+- Map snapshots are kept locally in the browser.
 
 ---
 
@@ -99,13 +101,16 @@ Project Structure
 
 
 thermal-web-system/
-├── index.html          # Main dashboard (all HTML, CSS, JS inline)
+├── index.html          # Dashboard markup
+├── styles.css          # Dashboard styles and themes
+├── script.js           # Dashboard state, UI, maps, and ESP32 WebSockets
+├── firebase.js         # Firebase Authentication and Realtime Database integration
+├── esp32.ino           # ESP32 firmware for sensors and hardware alarms
 ├── thermeye_logo.png   # App logo
 ├── ffhnas_logo.png     # School logo
 └── README.md           # This file
 
-
-Note: The entire application is self‑contained in a single HTML file for simplicity.
+The web dashboard uses inline SVG icons and is split into separate HTML, CSS, and JavaScript files.
 
 ---
 
@@ -129,10 +134,10 @@ This project is provided for educational purposes. Contact the developers for us
 
 Important Notes
 
-· The dashboard must remain open and connected to receive live data from the ESP32.
-· A data watchdog automatically zeroes out sensor readings if no data is received for 10 seconds.
-· Firewall or network restrictions may block WebSocket connections; ensure port 81 is open.
-· Firebase free tier limits apply – monitor your database usage.
+- The dashboard must remain open and connected to receive live data from the ESP32.
+- A data watchdog automatically zeroes out sensor readings if no data is received for 10 seconds.
+- Firewall or network restrictions may block WebSocket connections; ensure port 81 is open.
+- Firebase free tier limits apply; monitor your database usage.
 
 ---
 
